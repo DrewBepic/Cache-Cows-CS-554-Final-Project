@@ -44,10 +44,13 @@ export const getReviewsByPlaceId = async (placeId: string): Promise<Review[]> =>
     return await reviewsCollection.find({place_id: placeId}).toArray();
 };
 
-export const deleteReview = async (reviewId: string): Promise<boolean> => {
+export const deleteReview = async (userId: string, reviewId: string): Promise<boolean> => {
     const reviewsCollection = await reviews();
-    const review = await reviewsCollection.findOne({ _id: new ObjectId(reviewId) });
-    if (!review) {return false;}
+    const review = await reviewsCollection.findOne({ 
+        _id: new ObjectId(reviewId) ,
+        user_id: new ObjectId(userId)
+    });
+    if (!review) {throw new Error('Review not found or you do not have permission to delete it');}
 
     // Delete the review
     const result = await reviewsCollection.deleteOne({ _id: new ObjectId(reviewId) });
