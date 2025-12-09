@@ -1,18 +1,33 @@
 {
   "name": "tripli",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "",
   "type": "module",
+  "main": "index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:db": "tsx src/tests/testDB.ts",
+    "test:graphql": "tsx src/tests/testGraphQL.ts",
+    "start": "node server/server.js"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "@apollo/client": "^4.0.9",
+    "@apollo/server": "^5.2.0",
+    "apollo-server": "^3.13.0",
+    "bcryptjs": "^3.0.3",
     "bootstrap": "^5.3.8",
+    "dotenv": "^17.2.3",
     "graphql": "^16.12.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.0.0",
+    "mongoose": "^9.0.0",
     "react": "^19.2.0",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.2.0",
@@ -20,6 +35,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
@@ -27,6 +45,10 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
     "vite": "^7.2.4"
   }
 }
