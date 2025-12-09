@@ -1,0 +1,19 @@
+.App-title {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: black;
+    text-align: center;
+}
+
+.button {
+    padding: 10px;
+    background-color: #28547a;
+    color: white;
+    text-decoration: none !important;
+    margin-top: 10px;
+    margin-right: 5px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    align-items: center;
+}
