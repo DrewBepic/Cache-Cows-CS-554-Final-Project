@@ -44,8 +44,3 @@ export interface Review {
     notes?: string;
     createdAt: Date;
 }
-
-//GraphQL context
-export interface Context {
-    user?: User;
-}
