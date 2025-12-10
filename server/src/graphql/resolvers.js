@@ -3,6 +3,8 @@ import { users } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
+import bcrypt from 'bcryptjs';
+import { GraphQLError } from 'graphql';
 //Some helpers
 const isValidObjectId = (id) => {
     return ObjectId.isValid(id);
@@ -127,6 +129,33 @@ export const resolvers = {
                 password: password.trim()
             });
             return convertUser(user);
+        },
+        login: async (_, { username, password }, { session }) => {
+            if (!username || !password) {
+                throw new Error('Username and password are required');
+            }
+
+            const user = await userFunctions.findUserByUsername(username.toLowerCase().trim());
+            if (!user) {
+                throw new Error('Invalid username or password');
+            }
+
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if (!isPasswordValid) {
+                throw new Error('Invalid username or password');
+            }
+            session.userId = user._id.toString();
+
+            return convertUser(user);
+        },
+        logout: async (_, __, { session }) => {
+            try {
+                session.destroy();
+                return { success: true, message: 'Logged out successfully' };
+            } 
+            catch (error) {
+                throw new GraphQLError('Error logging out');
+            }
         },
         sendFriendRequest: async (_, { currentUserId, friendUsername }) => {
             if (!isValidObjectId(currentUserId)) {
