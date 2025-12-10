@@ -6,6 +6,9 @@ import * as friendFunctions from '../db_functions/friends.js';
 import redis from 'redis';
 const client = redis.createClient();
 client.connect().then(() => {});
+import bcrypt from 'bcryptjs';
+import { GraphQLError } from 'graphql';
+import { client } from '../server.js';
 //Some helpers
 const CACHE_KEYS = {
     USER: (id) => `user:${id}`,
@@ -192,20 +195,58 @@ export const resolvers = {
     },
     Mutation: {
         createUser: async (_, { username, firstName, lastName, password }) => {
-            // Basic validation
             if (!username.trim() || !firstName.trim() || !lastName.trim()) {
                 throw new Error('All fields are required');
             }
             if (password.length < 6) {
                 throw new Error('Password must be at least 6 characters');
             }
+            const cleanUsername = username.toLowerCase().trim();
             const user = await userFunctions.createUser({
-                username: username.toLowerCase().trim(),
+                username: cleanUsername,
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
                 password: password.trim()
             });
             await client.flushAll();
+        
+            const dbUser = await userFunctions.findUserByUsername(cleanUsername);
+            if (dbUser) {
+                await client.set(`user:username:${cleanUsername}`, JSON.stringify(dbUser));
+            }
+            
+            return convertUser(user);
+        },
+        login: async (_, { username, password }, { session }) => {
+            if (!username || !password) {
+                throw new Error('Username and password are required');
+            }
+
+            const cleanUsername = username.toLowerCase().trim();
+            const cacheKey = `user:username:${cleanUsername}`;
+            let user;
+            const cachedUser = await client.get(cacheKey);
+            if (cachedUser) {
+                user = JSON.parse(cachedUser);
+            }
+            else {
+                user = await userFunctions.findUserByUsername(cleanUsername);
+                if (!user) {
+                    throw new Error('Invalid username or password');
+                }
+                await client.set(cacheKey, JSON.stringify(user));
+            }
+
+            if (!user.password) {
+                throw new Error('Authentication error - invalid user data');
+            }
+
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if (!isPasswordValid) {
+                throw new Error('Invalid username or password');
+            }
+            session.userId = user._id.toString();
+
             return convertUser(user);
         },
         sendFriendRequest: async (_, { currentUserId, friendUsername }) => {

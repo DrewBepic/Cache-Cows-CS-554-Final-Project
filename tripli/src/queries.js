@@ -1,7 +1,5 @@
 import { gql } from '@apollo/client';
 
-//user queries
-
 export const GET_USER = gql`
   query GetUser($id: ID!) {
     getUser(id: $id) {
@@ -168,4 +166,35 @@ export const REMOVE_SAVED_PLACE = gql`
   mutation RemoveSavedPlace($userId: ID!, $placeId: String!) {
     removeSavedPlace(userId: $userId, placeId: $placeId)
   }
+`;
+
+export const CREATE_USER = gql`
+mutation CreateUser($username: String!, $firstName: String!, $lastName: String!, $password: String!) {
+    createUser(username: $username, firstName: $firstName, lastName: $lastName, password: $password) {
+        id
+        username
+        firstName
+        lastName
+    }
+}
+`;
+
+export const LOGIN = gql`
+mutation Login($username: String!, $password: String!) {
+    login(username: $username, password: $password) {
+        id
+        username
+        firstName
+        lastName
+    }
+}
+`;
+
+export const LOGOUT = gql`
+mutation Logout {
+    logout {
+        success
+        message
+    }
+}
 `;
