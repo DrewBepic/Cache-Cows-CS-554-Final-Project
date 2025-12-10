@@ -3,7 +3,22 @@ import { users } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
+import redis from 'redis';
+const client = redis.createClient();
+client.connect().then(() => {});
 //Some helpers
+const CACHE_KEYS = {
+    USER: (id) => `user:${id}`,
+    USER_BY_USERNAME: (username) => `user:username:${username.toLowerCase()}`,
+    FRIENDS: (userId) => `friends:${userId}`,
+    FRIEND_REQUESTS: (userId) => `friendRequests:${userId}`,
+    SENT_REQUESTS: (userId) => `sentRequests:${userId}`,
+    REVIEWS: (userId) => `reviews:${userId}`,
+    REVIEWS_BY_PLACE: (placeId) => `reviews:place:${placeId}`,
+    SAVED_PLACES: (userId) => `savedPlaces:${userId}`,
+    SEARCH_USERS: (query) => `search:users:${query.toLowerCase()}`
+};
+
 const isValidObjectId = (id) => {
     return ObjectId.isValid(id);
 };
@@ -43,20 +58,34 @@ export const resolvers = {
             if (!isValidObjectId(id)) {
                 throw new Error('Invalid user ID format');
             }
+            const cacheKey = CACHE_KEYS.USER(id);
+            const cachedUser = await client.get(cacheKey);
+            if (cachedUser) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedUser);
+            }
             const user = await userFunctions.findUserById(id);
             if (!user) {
                 throw new Error('User not found');
             }
+            await client.set(cacheKey, JSON.stringify(convertUser(user)));
             return convertUser(user);
         },
         getUserByUsername: async (_, { username }) => {
             if (!username || username.trim() === '') {
                 throw new Error('Username cannot be empty');
             }
-            const user = await userFunctions.findUserByUsername(username);
+            const cacheKey = CACHE_KEYS.USER_BY_USERNAME(username.trim());
+            const cachedUser = await client.get(cacheKey);
+            if (cachedUser) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedUser);
+            }
+            const user = await userFunctions.findUserByUsername(username.trim());
             if (!user) {
                 throw new Error('User not found');
             }
+            await client.set(cacheKey, JSON.stringify(convertUser(user)));
             return convertUser(user);
         },
         searchUsers: async (_, { query }) => {
@@ -66,49 +95,99 @@ export const resolvers = {
             if (query.length < 2) {
                 throw new Error('Search query must be at least 2 characters long');
             }
+            const cacheKey = CACHE_KEYS.SEARCH_USERS(query.trim());
+            const cachedUsers = await client.get(cacheKey);
+            if (cachedUsers) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedUsers);
+            }
             const users = await userFunctions.searchUsersByUsername(query);
+            await client.set(cacheKey, JSON.stringify(users.map(convertUser)));
             return users.map(convertUser);
         },
         getFriends: async (_, { userId }) => {
-            if (!isValidObjectId(userId)) {
+            if (!isValidObjectId(userId.trim())) {
                 throw new Error('Invalid user ID format');
             }
+            const cacheKey = CACHE_KEYS.FRIENDS(userId.trim());
+            const cachedFriends = await client.get(cacheKey);
+            if (cachedFriends) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedFriends);
+            }
             const friends = await friendFunctions.getUserFriends(userId);
+            await client.set(cacheKey, JSON.stringify(friends.map(convertUser)));
             return friends.map(convertUser);
         },
         getFriendRequests: async (_, { userId }) => {
-            if (!isValidObjectId(userId)) {
+            if (!isValidObjectId(userId.trim())) {
                 throw new Error('Invalid user ID format');
             }
-            const friendRequests = await friendFunctions.getFriendRequests(userId);
+            const cacheKey = CACHE_KEYS.FRIEND_REQUESTS(userId.trim());
+            const cachedFriends = await client.get(cacheKey);
+            if (cachedFriends) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedFriends);
+            }
+            const friendRequests = await friendFunctions.getFriendRequests(userId.trim());
+            await client.set(cacheKey, JSON.stringify(friends.map(convertUser)));
             return friendRequests.map(convertUser);
         },
         getSentFriendRequests: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
-            const sentFriendRequests = await friendFunctions.getSentFriendRequests(userId);
+            const cacheKey = CACHE_KEYS.SENT_REQUESTS(userId.trim());
+            const cachedFriends = await client.get(cacheKey);
+            if (cachedFriends) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedFriends);
+            }
+            const sentFriendRequests = await friendFunctions.getSentFriendRequests(userId.trim());
+            await client.set(cacheKey, JSON.stringify(friends.map(convertUser)));
             return sentFriendRequests.map(convertUser);
         },
         getUserReviews: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
-            const reviews = await reviewFunctions.getReviewsByUserId(userId);
+            const cacheKey = CACHE_KEYS.REVIEWS(userId.trim());
+            const cachedReviews = await client.get(cacheKey);
+            if (cachedReviews) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedReviews);
+            }
+            const reviews = await reviewFunctions.getReviewsByUserId(userId.trim());
+            await client.set(cacheKey, JSON.stringify(reviews.map(convertReview)));
             return reviews.map(convertReview);
         },
         getReviewsByPlace: async (_, { placeId }) => {
             if (!placeId || placeId.trim() === '') {
                 throw new Error('Place ID cannot be empty');
             }
+            const cacheKey = CACHE_KEYS.REVIEWS_BY_PLACE(placeId.trim());
+            const cachedReviews = await client.get(cacheKey);
+            if (cachedReviews) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedReviews);
+            }
             const reviews = await reviewFunctions.getReviewsByPlaceId(placeId);
+            await client.set(cacheKey, JSON.stringify(reviews.map(convertReview)));
             return reviews.map(convertReview);
         },
         getSavedPlaces: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
-            return await userFunctions.getSavedPlaces(userId);
+            const cacheKey = CACHE_KEYS.SAVED_PLACES(userId.trim());
+            const cachedPlaces = await client.get(cacheKey);
+            if (cachedPlaces) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedPlaces);
+            }
+            const savedPlaces = await userFunctions.getSavedPlaces(userId);
+            await client.set(cacheKey, JSON.stringify(savedPlaces));
+            return savedPlaces;
         }
     },
     Mutation: {
@@ -126,6 +205,7 @@ export const resolvers = {
                 last_name: lastName.trim(),
                 password: password.trim()
             });
+            await client.flushAll();
             return convertUser(user);
         },
         sendFriendRequest: async (_, { currentUserId, friendUsername }) => {
@@ -135,14 +215,11 @@ export const resolvers = {
             if (!friendUsername.trim()) {
                 throw new Error('Friend username is required');
             }
-            console.log('GRAPHQL DEBUG - sendFriendRequest called with:');
-            console.log('  currentUserId:', currentUserId);
-            console.log('  friendUsername:', friendUsername);
-            console.log('  isValidObjectId(currentUserId):', isValidObjectId(currentUserId));
             try {
                 const updatedUser = await friendFunctions.sendFriendRequest(currentUserId, friendUsername.trim());
                 const converted = convertUser(updatedUser);
                 // DEBUG: Log after conversion
+                await client.flushAll();
                 return converted;
             }
             catch (error) {
@@ -155,6 +232,7 @@ export const resolvers = {
             }
             try {
                 const updatedUser = await friendFunctions.acceptFriendRequest(currentUserId, friendId);
+                await client.flushAll();
                 return convertUser(updatedUser);
             }
             catch (error) {
@@ -167,6 +245,7 @@ export const resolvers = {
             }
             try {
                 const updatedUser = await friendFunctions.rejectFriendRequest(currentUserId, friendId);
+                await client.flushAll();
                 return convertUser(updatedUser);
             }
             catch (error) {
@@ -179,6 +258,7 @@ export const resolvers = {
             }
             try {
                 const updatedUser = await friendFunctions.removeFriend(currentUserId, friendId);
+                await client.flushAll();
                 return convertUser(updatedUser);
             }
             catch (error) {
@@ -197,6 +277,7 @@ export const resolvers = {
             }
             try {
                 const review = await reviewFunctions.createReview(userId, placeId.trim(), placeName.trim(), rating, notes?.trim());
+                await client.flushAll();
                 return convertReview(review);
             }
             catch (error) {
@@ -209,6 +290,7 @@ export const resolvers = {
             }
             try {
                 const success = await reviewFunctions.deleteReview(userId, reviewId);
+                await client.flushAll(); //CHANGE EVENTUALLY
                 return success;
             }
             catch (error) {
@@ -223,6 +305,7 @@ export const resolvers = {
                 throw new Error('Place ID is required');
             }
             const res = await userFunctions.addSavedPlace(userId, placeId.trim());
+            if (res) {await client.flushAll();}
             return res; //true if modified, false otherwise
         },
         removeSavedPlace: async (_, { userId, placeId }) => {
@@ -233,58 +316,27 @@ export const resolvers = {
                 throw new Error('Place ID is required');
             }
             const res = await userFunctions.removeSavedPlace(userId, placeId.trim());
+            if (res) {await client.flushAll();}
             return res; //true if modified, false otherwise
         }
     },
     //Field resolvers
     User: {
         friends: async (parent) => {
-            if (parent.friends && parent.friends.length > 0) {
-                //some friends alr exist
-                //check if its alr including user objects. otherwise fetch them
-                if (typeof parent.friends[0] == 'object' && parent.friends[0].username) {
-                    return parent.friends.map(convertUser);
-                }
-                const friends = await friendFunctions.getUserFriends(parent.id);
-                return friends.map(convertUser);
-            }
-            //otherwise j return empty array
-            return [];
+            const friends = await friendFunctions.getUserFriends(parent.id);
+            return friends.map(convertUser);
         },
         reviews: async (parent) => {
-            if (!parent.reviews || parent.reviews.length === 0) {
-                return [];
-            }
-            //review has alr been converted
-            if (typeof parent.reviews[0] == 'object' && parent.reviews[0].placeName) {
-                return parent.reviews;
-            }
             const reviews = await reviewFunctions.getReviewsByUserId(parent.id);
             return reviews.map(convertReview);
         },
         sentFriendRequests: async (parent) => {
-            if (!parent.sentFriendRequests || parent.sentFriendRequests.length === 0) {
-                return [];
-            }
-            //list alr exists and has been converted
-            if (typeof parent.sentFriendRequests[0] === 'object' && parent.sentFriendRequests[0].username) {
-                return parent.sentFriendRequests;
-            }
-            //otherwise it dont so get it
             const usersCollection = await users();
             const requestIds = parent.sentFriendRequests.map((id) => new ObjectId(id));
             const requests = await usersCollection.find({ _id: { $in: requestIds } }).toArray();
             return requests.map(convertUser);
         },
         receivedFriendRequests: async (parent) => {
-            if (!parent.receivedFriendRequests || parent.receivedFriendRequests.length === 0) {
-                return [];
-            }
-            //list alr exists and has been converted
-            if (typeof parent.receivedFriendRequests[0] === 'object' && parent.receivedFriendRequests[0].username) {
-                return parent.receivedFriendRequests;
-            }
-            //otherwise it dont so get it
             const usersCollection = await users();
             const requestIds = parent.receivedFriendRequests.map((id) => new ObjectId(id));
             const requests = await usersCollection.find({ _id: { $in: requestIds } }).toArray();
