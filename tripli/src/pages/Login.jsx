@@ -31,12 +31,16 @@ function Login() {
         }
 
         try {
-            await login({
+            const {data} = await login({
                 variables: {
                     username,
                     password
                 }
             });
+            if (data?.login) {
+                localStorage.setItem('userId', data.login.id);
+                localStorage.setItem('username', data.login.username);
+            }
         }
         catch (err) {
             setError('Login failed. Please try again.');
