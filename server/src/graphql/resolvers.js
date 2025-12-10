@@ -23,7 +23,8 @@ const CACHE_KEYS = {
 };
 
 const isValidObjectId = (id) => {
-    return ObjectId.isValid(id);
+    if (!id || id.trim() == '') {return false;}
+    return ObjectId.isValid(id.trim());
 };
 const convertUser = (user) => {
     if (!user) {
@@ -249,15 +250,17 @@ export const resolvers = {
 
             return convertUser(user);
         },
-        sendFriendRequest: async (_, { currentUserId, friendUsername }) => {
+        sendFriendRequest: async (_, { currentUserId, friendUsername }, {session}) => {
             if (!isValidObjectId(currentUserId)) {
                 throw new Error('Invalid user ID format');
             }
             if (!friendUsername.trim()) {
                 throw new Error('Friend username is required');
             }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== currentUserId.trim()) throw new Error('Cannot perform action as another user');
             try {
-                const updatedUser = await friendFunctions.sendFriendRequest(currentUserId, friendUsername.trim());
+                const updatedUser = await friendFunctions.sendFriendRequest(currentUserId.trim(), friendUsername.trim());
                 const converted = convertUser(updatedUser);
                 // DEBUG: Log after conversion
                 await client.flushAll();
@@ -267,10 +270,12 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        acceptFriendRequest: async (_, { currentUserId, friendId }) => {
+        acceptFriendRequest: async (_, { currentUserId, friendId }, {session}) => {
             if (!isValidObjectId(currentUserId) || !isValidObjectId(friendId)) {
                 throw new Error('Invalid user ID format');
             }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== currentUserId.trim()) throw new Error('Cannot perform action as another user'); 
             try {
                 const updatedUser = await friendFunctions.acceptFriendRequest(currentUserId, friendId);
                 await client.flushAll();
@@ -280,10 +285,12 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        rejectFriendRequest: async (_, { currentUserId, friendId }) => {
+        rejectFriendRequest: async (_, { currentUserId, friendId }, {session}) => {
             if (!isValidObjectId(currentUserId) || !isValidObjectId(friendId)) {
                 throw new Error('Invalid user ID format');
             }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== currentUserId.trim()) throw new Error('Cannot perform action as another user');
             try {
                 const updatedUser = await friendFunctions.rejectFriendRequest(currentUserId, friendId);
                 await client.flushAll();
@@ -293,10 +300,12 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        removeFriend: async (_, { currentUserId, friendId }) => {
+        removeFriend: async (_, { currentUserId, friendId }, {session}) => {
             if (!isValidObjectId(currentUserId) || !isValidObjectId(friendId)) {
                 throw new Error('Invalid user ID format');
             }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== currentUserId.trim()) throw new Error('Cannot perform action as another user');
             try {
                 const updatedUser = await friendFunctions.removeFriend(currentUserId, friendId);
                 await client.flushAll();
@@ -306,7 +315,7 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        createReview: async (_, { userId, placeId, placeName, rating, notes }) => {
+        createReview: async (_, { userId, placeId, placeName, rating, notes }, {session}) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
@@ -316,6 +325,8 @@ export const resolvers = {
             if (rating < 1 || rating > 5) {
                 throw new Error('Rating must be between 1 and 5');
             }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== userId.trim()) throw new Error('Cannot perform action as another user');
             try {
                 const review = await reviewFunctions.createReview(userId, placeId.trim(), placeName.trim(), rating, notes?.trim());
                 await client.flushAll();
@@ -325,10 +336,12 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        deleteReview: async (_, { userId, reviewId }) => {
+        deleteReview: async (_, { userId, reviewId }, {session}) => {
             if (!isValidObjectId(userId) || !isValidObjectId(reviewId)) {
                 throw new Error('Invalid ID format');
             }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== userId.trim()) throw new Error('Cannot perform action as another user');
             try {
                 const success = await reviewFunctions.deleteReview(userId, reviewId);
                 await client.flushAll(); //CHANGE EVENTUALLY
@@ -338,13 +351,15 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        addSavedPlace: async (_, { userId, placeId }) => {
+        addSavedPlace: async (_, { userId, placeId }, {session}) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
             if (!placeId.trim()) {
                 throw new Error('Place ID is required');
             }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== userId.trim()) throw new Error('Cannot perform action as another user');
             const res = await userFunctions.addSavedPlace(userId, placeId.trim());
             if (res) {await client.flushAll();}
             return res; //true if modified, false otherwise
@@ -356,6 +371,8 @@ export const resolvers = {
             if (!placeId.trim()) {
                 throw new Error('Place ID is required');
             }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== userId.trim()) throw new Error('Cannot perform action as another user');
             const res = await userFunctions.removeSavedPlace(userId, placeId.trim());
             if (res) {await client.flushAll();}
             return res; //true if modified, false otherwise
