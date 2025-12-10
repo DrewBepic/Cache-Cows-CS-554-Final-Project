@@ -4,9 +4,6 @@ import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
 import redis from 'redis';
-const client = redis.createClient();
-client.connect().then(() => {});
-import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
 import { client } from '../server.js';
 //Some helpers

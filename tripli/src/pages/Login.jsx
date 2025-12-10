@@ -10,8 +10,12 @@ function Login() {
     const navigate = useNavigate();
 
     const [login] = useMutation(LOGIN, {
-        update(cache, { data: { login } }) {
+        update(cache, { data: { login : user } }) {
             try {
+                if (user && user.id) {
+                    localStorage.setItem('userId', user.id);
+                    localStorage.setItem('username', user.username);
+                }
                 navigate('/feed');
             }
             catch (e) {
@@ -37,10 +41,6 @@ function Login() {
                     password
                 }
             });
-            if (data?.login) {
-                localStorage.setItem('userId', data.login.id);
-                localStorage.setItem('username', data.login.username);
-            }
         }
         catch (err) {
             setError('Login failed. Please try again.');
