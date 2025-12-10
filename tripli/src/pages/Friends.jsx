@@ -263,7 +263,7 @@ const SearchUsersTab = ({ searchQuery, setSearchQuery, searchResults, searchLoad
 };
 
 function Friends() {
-    const { userId } = localStorage.getItem('userId');
+    const userId = localStorage.getItem('userId');
     const [activeTab, setActiveTab] = useState('current-friends');
     const [friendUsername, setFriendUsername] = useState('');
     const [searchQuery, setSearchQuery] = useState('');

@@ -3,9 +3,9 @@ import { users } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
-import redis from 'redis';
 import { GraphQLError } from 'graphql';
 import { client } from '../server.js';
+import bcrypt from 'bcryptjs';
 //Some helpers
 const CACHE_KEYS = {
     USER: (id) => `user:${id}`,
