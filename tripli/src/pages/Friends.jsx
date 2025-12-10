@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { 
   Container, Row, Col, Card, Button, Alert, Spinner, ListGroup, Form,
@@ -18,7 +18,7 @@ import {
 
 // helper funcs
 
-const renderUserAvatar = (user, bgColor = 'primary', size = 50) => (
+const renderUserAvatar = (user, bgColor = 'primary') => (
     <div 
         className={`bg-${bgColor} text-white rounded-circle d-flex align-items-center justify-content-center me-3`}
     >
