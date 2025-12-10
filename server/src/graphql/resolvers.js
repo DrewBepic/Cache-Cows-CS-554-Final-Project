@@ -1,8 +1,9 @@
 import { ObjectId } from 'mongodb';
-import { users } from "../db_config/mongoCollections.js";
+import { users, reviews } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
+import * as savedPlaceFunctions from '../db_functions/saved_places.js';
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
 import { client } from '../server.js';
@@ -40,6 +41,20 @@ const convertReview = (review) => {
         notes: review.notes || ''
     };
 };
+
+const convertSavedPlace = (place) => {
+    if (!place) return null;
+    return {
+        id: place._id?.toString() || place._id,
+        name: place.name,
+        description: place.description || '',
+        city: place.city,
+        country: place.country,
+        photos: place.photos || [],
+        reviews: []
+    };
+};
+
 export const resolvers = {
     Query: {
         getUser: async (_, { id }) => {
@@ -107,11 +122,32 @@ export const resolvers = {
             const reviews = await reviewFunctions.getReviewsByPlaceId(placeId);
             return reviews.map(convertReview);
         },
-        getSavedPlaces: async (_, { userId }) => {
+        getSavedPlace: async (_, { placeId }) => {
+            if (!isValidObjectId(placeId)) {
+                throw new Error('Invalid place ID format');
+            }
+            const place = await savedPlaceFunctions.getSavedPlaceById(placeId);
+            if (!place) {
+                throw new Error('Saved place not found');
+            }
+            return convertSavedPlace(place);
+        },
+        getUserSavedPlaces: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
-            return await userFunctions.getSavedPlaces(userId);
+            const places = await savedPlaceFunctions.getUserSavedPlaces(userId);
+            return places.map(convertSavedPlace);
+        },
+        searchSavedPlaces: async (_, { query }) => {
+            if (!query || query.trim() === '') {
+                throw new Error('Search query cannot be empty');
+            }
+            if (query.length < 2) {
+                throw new Error('Search query must be at least 2 characters long');
+            }
+            const places = await savedPlaceFunctions.searchSavedPlaces(query);
+            return places.map(convertSavedPlace);
         }
     },
     Mutation: {
@@ -284,6 +320,76 @@ export const resolvers = {
             }
             const res = await userFunctions.removeSavedPlace(userId, placeId.trim());
             return res; //true if modified, false otherwise
+        },
+        createSavedPlace: async (_, { userId, name, description, city, country, photos }) => {
+            if (!isValidObjectId(userId)) {
+                throw new Error('Invalid user ID format');
+            }
+            if (!name.trim() || !city.trim() || !country.trim()) {
+                throw new Error('Name, city, and country are required');
+            }
+            try {
+                const place = await savedPlaceFunctions.createSavedPlace(
+                    userId,
+                    name.trim(),
+                    description?.trim(),
+                    city.trim(),
+                    country.trim(),
+                    photos || []
+                );
+                return convertSavedPlace(place);
+            } catch (error) {
+                throw new Error(error.message);
+            }
+        },
+        updateSavedPlace: async (_, { placeId, name, description, city, country, photos }) => {
+            if (!isValidObjectId(placeId)) {
+                throw new Error('Invalid place ID format');
+            }
+            try {
+                const updates = {};
+                if (name !== undefined) updates.name = name.trim();
+                if (description !== undefined) updates.description = description.trim();
+                if (city !== undefined) updates.city = city.trim();
+                if (country !== undefined) updates.country = country.trim();
+                if (photos !== undefined) updates.photos = photos;
+
+                const updatedPlace = await savedPlaceFunctions.updateSavedPlace(placeId, updates);
+                return convertSavedPlace(updatedPlace);
+            } catch (error) {
+                throw new Error(error.message);
+            }
+        },
+        deleteSavedPlace: async (_, { userId, placeId }) => {
+            if (!isValidObjectId(userId) || !isValidObjectId(placeId)) {
+                throw new Error('Invalid ID format');
+            }
+            try {
+                const success = await savedPlaceFunctions.deleteSavedPlace(userId, placeId);
+                return success;
+            } catch (error) {
+                throw new Error(error.message);
+            }
+        },
+        addPhotoToPlace: async (_, { placeId, photoUrl }) => {
+            if (!isValidObjectId(placeId)) {
+                throw new Error('Invalid place ID format');
+            }
+            if (!photoUrl.trim()) {
+                throw new Error('Photo URL is required');
+            }
+            const res = await savedPlaceFunctions.addPhotoToPlace(placeId, photoUrl.trim());
+            return res;
+        },
+        removePhotoFromPlace: async (_, { placeId, photoUrl }) => {
+            if (!isValidObjectId(placeId)) {
+                throw new Error('Invalid place ID format');
+            }
+            if (!photoUrl.trim()) {
+                throw new Error('Photo URL is required');
+            }
+            const res = await savedPlaceFunctions.removePhotoFromPlace(placeId, photoUrl.trim());
+            return res;
         }
     },
     //Field resolvers
@@ -339,6 +445,22 @@ export const resolvers = {
             const requestIds = parent.receivedFriendRequests.map((id) => new ObjectId(id));
             const requests = await usersCollection.find({ _id: { $in: requestIds } }).toArray();
             return requests.map(convertUser);
+        }
+    },
+    SavedPlace: {
+        reviews: async (parent) => {
+            if (!parent.reviews || parent.reviews.length === 0) {
+                return [];
+            }
+            // If reviews are already converted
+            if (typeof parent.reviews[0] === 'object' && parent.reviews[0].placeName) {
+                return parent.reviews;
+            }
+            // Otherwise fetch them
+            const reviewsCollection = await reviews();
+            const reviewIds = parent.reviews.map(id => new ObjectId(id));
+            const reviewList = await reviewsCollection.find({ _id: { $in: reviewIds } }).toArray();
+            return reviewList.map(convertReview);
         }
     }
 };
