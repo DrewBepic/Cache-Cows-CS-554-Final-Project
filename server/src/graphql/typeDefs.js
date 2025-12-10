@@ -21,6 +21,11 @@ export const typeDefs = `#graphql
         createdAt: String!
     }
 
+    type AuthResponse {
+        success: Boolean!
+        message: String!
+    }
+
     type Query {
         getUser(id: ID!): User
         getUserByUsername(username: String!): User
@@ -43,6 +48,9 @@ export const typeDefs = `#graphql
             lastName: String!
             password: String!
         ): User!
+
+        login(username: String!, password: String!): User!
+        logout: AuthResponse!
 
         sendFriendRequest(currentUserId: ID!, friendUsername: String!): User!
         acceptFriendRequest(currentUserId: ID!, friendId: ID!): User!
