@@ -1,13 +1,19 @@
 import { ObjectId } from 'mongodb';
-import { users, reviews } from "../db_config/mongoCollections.js";
+import { users, saved_places, reviews } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
 import * as savedPlaceFunctions from '../db_functions/saved_places.js';
+
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
 import { client } from '../server.js';
-//Some helpers
+import { 
+    indexSavedPlace, 
+    updateSavedPlaceIndex, 
+    deleteSavedPlaceIndex 
+} from '../config/elasticsearch.js';
+
 const isValidObjectId = (id) => {
     return ObjectId.isValid(id);
 };
@@ -139,14 +145,18 @@ export const resolvers = {
             const places = await savedPlaceFunctions.getUserSavedPlaces(userId);
             return places.map(convertSavedPlace);
         },
-        searchSavedPlaces: async (_, { query }) => {
+        searchSavedPlaces: async (_, { query, userId }) => {
             if (!query || query.trim() === '') {
                 throw new Error('Search query cannot be empty');
             }
             if (query.length < 2) {
                 throw new Error('Search query must be at least 2 characters long');
             }
-            const places = await savedPlaceFunctions.searchSavedPlaces(query);
+            // Use Elasticsearch for search
+            const places = await savedPlaceFunctions.searchSavedPlacesElastic(
+                query.trim(), 
+                userId || null
+            );
             return places.map(convertSavedPlace);
         }
     },

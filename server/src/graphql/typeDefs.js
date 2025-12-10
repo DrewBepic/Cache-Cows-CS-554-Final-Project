@@ -50,7 +50,8 @@ export const typeDefs = `#graphql
 
         getSavedPlace(placeId: ID!): SavedPlace
         getUserSavedPlaces(userId: ID!): [SavedPlace!]! 
-        searchSavedPlaces(query: String!): [SavedPlace!]!
+        searchSavedPlaces(query: String!, userId: ID): [SavedPlace!]!
+        autocompleteSavedPlaces(prefix: String!): [String!]!
     }
 
     type Mutation {

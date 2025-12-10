@@ -1,5 +1,10 @@
 import { saved_places, users } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
+import { 
+    indexSavedPlace, 
+    updateSavedPlaceIndex, 
+    deleteSavedPlaceIndex 
+} from '../config/elasticsearch.js';
 
 // Create a new saved place
 export const createSavedPlace = async (userId, name, description, city, country, photos) => {
@@ -10,7 +15,7 @@ export const createSavedPlace = async (userId, name, description, city, country,
         city: city,
         country: country,
         photos: photos || [],
-        reviews: [], // Array of review ObjectIds
+        reviews: [], 
         createdAt: new Date()
     };
 
@@ -24,7 +29,8 @@ export const createSavedPlace = async (userId, name, description, city, country,
         { _id: new ObjectId(userId) },
         { $addToSet: { saved_places: insertResult.insertedId } }
     );
-
+    await indexSavedPlace(newSavedPlace); //index for elasticsearch
+    newSavedPlace._id = insertResult.insertedId.toString();
     return newSavedPlace;
 };
 
@@ -69,6 +75,7 @@ export const updateSavedPlace = async (placeId, updates) => {
         { $set: updateFields },
         { returnDocument: 'after' }
     );
+    await updateSavedPlaceIndex(placeId, updateFields); //update elasticsearch index
 
     return result;
 };
@@ -97,6 +104,7 @@ export const deleteSavedPlace = async (userId, placeId) => {
             { _id: new ObjectId(userId) },
             { $pull: { saved_places: new ObjectId(placeId) } }
         );
+        await deleteSavedPlaceIndex(placeId); //delete from elasticsearch
     }
 
     return result.deletedCount > 0;
@@ -154,4 +162,24 @@ export const removeReviewFromPlace = async (placeId, reviewId) => {
         { $pull: { reviews: new ObjectId(reviewId) } }
     );
     return result.modifiedCount > 0;
+};
+//define search function return
+export const searchSavedPlacesElastic = async (searchTerm, userId = null) => {
+    // Import at top of function to avoid circular dependency
+    const { searchSavedPlacesElastic: esSearch } = await import('../config/elasticsearch.js');
+    
+    const results = await esSearch(searchTerm, userId);
+    
+    // Convert ES results back to MongoDB ObjectIds
+    return results.map(result => ({
+        _id: new ObjectId(result.id),
+        name: result.name,
+        description: result.description,
+        city: result.city,
+        country: result.country,
+        user_id: new ObjectId(result.user_id),
+        photos: result.photos,
+        reviews: [],
+        createdAt: new Date(result.createdAt)
+    }));
 };
