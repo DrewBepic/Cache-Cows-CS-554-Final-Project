@@ -4,6 +4,7 @@ import {ApolloServer} from '@apollo/server';
 import {expressMiddleware} from '@apollo/server/express4';
 import {typeDefs} from './graphql/typeDefs.js';
 import {resolvers} from './graphql/resolvers.js';
+import { createClient } from 'redis';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -21,6 +22,12 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
+
+export const client = createClient({
+    url: 'redis://localhost:6379'
+});
+
+await client.connect();
 
 app.use(session({
     name: 'AuthenticationState', 

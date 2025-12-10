@@ -5,6 +5,7 @@ import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
+import { client } from '../server.js';
 //Some helpers
 const isValidObjectId = (id) => {
     return ObjectId.isValid(id);
@@ -115,19 +116,25 @@ export const resolvers = {
     },
     Mutation: {
         createUser: async (_, { username, firstName, lastName, password }) => {
-            // Basic validation
             if (!username.trim() || !firstName.trim() || !lastName.trim()) {
                 throw new Error('All fields are required');
             }
             if (password.length < 6) {
                 throw new Error('Password must be at least 6 characters');
             }
+            const cleanUsername = username.toLowerCase().trim();
             const user = await userFunctions.createUser({
-                username: username.toLowerCase().trim(),
+                username: cleanUsername,
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
                 password: password.trim()
             });
+        
+            const dbUser = await userFunctions.findUserByUsername(cleanUsername);
+            if (dbUser) {
+                await client.set(`user:username:${cleanUsername}`, JSON.stringify(dbUser));
+            }
+            
             return convertUser(user);
         },
         login: async (_, { username, password }, { session }) => {
@@ -135,9 +142,23 @@ export const resolvers = {
                 throw new Error('Username and password are required');
             }
 
-            const user = await userFunctions.findUserByUsername(username.toLowerCase().trim());
-            if (!user) {
-                throw new Error('Invalid username or password');
+            const cleanUsername = username.toLowerCase().trim();
+            const cacheKey = `user:username:${cleanUsername}`;
+            let user;
+            const cachedUser = await client.get(cacheKey);
+            if (cachedUser) {
+                user = JSON.parse(cachedUser);
+            }
+            else {
+                user = await userFunctions.findUserByUsername(cleanUsername);
+                if (!user) {
+                    throw new Error('Invalid username or password');
+                }
+                await client.set(cacheKey, JSON.stringify(user));
+            }
+
+            if (!user.password) {
+                throw new Error('Authentication error - invalid user data');
             }
 
             const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -152,7 +173,7 @@ export const resolvers = {
             try {
                 session.destroy();
                 return { success: true, message: 'Logged out successfully' };
-            } 
+            }
             catch (error) {
                 throw new GraphQLError('Error logging out');
             }
