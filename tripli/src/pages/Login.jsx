@@ -3,16 +3,21 @@ import { useMutation, useQuery } from '@apollo/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { LOGIN } from '../queries';
 
-function Login() {
+function Login({ setIsLoggedIn, setCurrentUserId }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
     const [login] = useMutation(LOGIN, {
+      onCompleted: (data) => {
+        setIsLoggedIn(true);
+        setCurrentUserId(data.login.id);
+      },
         update(cache, { data: { login } }) {
             try {
-                navigate('/feed');
+              
+              navigate('/feed');
             }
             catch (e) {
                 console.error('Login error:', e);

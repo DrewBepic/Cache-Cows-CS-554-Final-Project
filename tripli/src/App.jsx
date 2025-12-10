@@ -8,7 +8,7 @@ import UserProfile from './pages/UserProfile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Feed from './pages/Feed';
-
+import PlaceDetail from './pages/PlaceDetail';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
@@ -41,6 +41,7 @@ function App() {
           <Route path="/feed" element={<Feed />} />
           <Route path="/friends/:userId" element={<Friends />} />
           <Route path="/profile/:userId" element={<UserProfile />} />
+          <Route path="/place/:placeId" element={<PlaceDetail />} />
         </Routes>
       </div>
     </div>

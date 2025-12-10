@@ -163,7 +163,7 @@ export const removeReviewFromPlace = async (placeId, reviewId) => {
     );
     return result.modifiedCount > 0;
 };
-//define search function return
+//define search function returning
 export const searchSavedPlacesElastic = async (searchTerm, userId = null) => {
     // Import at top of function to avoid circular dependency
     const { searchSavedPlacesElastic: esSearch } = await import('../config/elasticsearch.js');
