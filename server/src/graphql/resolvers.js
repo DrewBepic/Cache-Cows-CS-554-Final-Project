@@ -131,7 +131,7 @@ export const resolvers = {
                 return JSON.parse(cachedFriends);
             }
             const friendRequests = await friendFunctions.getFriendRequests(userId.trim());
-            await client.set(cacheKey, JSON.stringify(friends.map(convertUser)));
+            await client.set(cacheKey, JSON.stringify(friendRequests.map(convertUser)));
             return friendRequests.map(convertUser);
         },
         getSentFriendRequests: async (_, { userId }) => {
@@ -145,7 +145,7 @@ export const resolvers = {
                 return JSON.parse(cachedFriends);
             }
             const sentFriendRequests = await friendFunctions.getSentFriendRequests(userId.trim());
-            await client.set(cacheKey, JSON.stringify(friends.map(convertUser)));
+            await client.set(cacheKey, JSON.stringify(sentFriendRequests.map(convertUser)));
             return sentFriendRequests.map(convertUser);
         },
         getUserReviews: async (_, { userId }) => {
