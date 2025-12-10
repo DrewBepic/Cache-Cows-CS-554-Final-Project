@@ -22,7 +22,7 @@ function App() {
         <Route path="/login" element={<Login />}/>
         <Route path="/signup" element={<Signup />}/>
         <Route path="/feed" element={<Feed />}/>
-        <Route path="/friends/:userId" element={<Friends />}/>
+        <Route path="/friends" element={<Friends />}/>
         <Route path="/profile/:userId" element={<UserProfile />} />
       </Routes>
     </div>

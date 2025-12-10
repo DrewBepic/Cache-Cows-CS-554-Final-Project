@@ -263,7 +263,7 @@ const SearchUsersTab = ({ searchQuery, setSearchQuery, searchResults, searchLoad
 };
 
 function Friends() {
-    const { userId } = useParams();
+    const { userId } = localStorage.getItem('userId');
     const [activeTab, setActiveTab] = useState('current-friends');
     const [friendUsername, setFriendUsername] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -271,6 +271,21 @@ function Friends() {
     const [searchLoading, setSearchLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+
+    //make sure user is logged in before messing with anything
+    if (!userId) {
+        return (
+            <Container className="my-5">
+                <Alert variant="warning">
+                    <Alert.Heading>Log In</Alert.Heading>
+                    <p>You need to be logges in to view and manage friends.</p>
+                    <Link to="/login">Go to Login</Link>
+                </Alert>
+            </Container>
+        );
+    }
+
+
 
     // get current user info
     const { loading: userLoading, error: userError, data: userData } = useQuery(GET_USER, {
