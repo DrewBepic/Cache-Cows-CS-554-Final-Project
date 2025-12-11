@@ -59,68 +59,94 @@ function Signup() {
         }
     };
 
-    return (
-        <div className="Signup">
-            <h2 className='Signup-Title'>Sign Up</h2>
+return (
+  <div className="container">
+    <div className="row justify-content-center mt-5">
+      <div className="col-md-8 col-lg-6">
+        <div className="card shadow">
+          <div className="card-body p-4">
+            <h2 className="card-title text-center mb-4 text-primary">Sign Up</h2>
             
-            {error && <p className="error">{error}</p>}
+            {error && (
+              <div className="alert alert-danger" role="alert">
+                {error}
+              </div>
+            )}
 
-            <div className='FormDiv'>
-                <label>Username</label>
-                <input
-                    type =" text"
-                    placeholder = "Enter username"
-                    value = {username}
-                    onChange={(e) => setUsername(e.target.value)}
-                />
+            <div className="mb-3">
+              <label className="form-label fw-bold">Username</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Enter username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
             </div>
 
-            <div className='FormDiv'>
-                <label>First Name</label>
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-bold">First Name</label>
                 <input
-                    type = "text"
-                    placeholder = "Enter first name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter first name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                 />
+              </div>
+
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-bold">Last Name</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter last name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className='FormDiv'>
-                <label>Last Name</label>
-                <input
-                    type="text"
-                    placeholder="Enter last name"
-                    value = {lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                />
+            <div className="mb-3">
+              <label className="form-label fw-bold">Password</label>
+              <input
+                type="password"
+                className="form-control"
+                placeholder="Enter password (min 6 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
 
-            <div className='FormDiv'>
-                <label>Password</label>
-                <input
-                    type = "password"
-                    placeholder = "Enter password (min 6 characters)"
-                    value = {password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
+            <div className="mb-3">
+              <label className="form-label fw-bold">Confirm Password</label>
+              <input
+                type="password"
+                className="form-control"
+                placeholder="Confirm password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
             </div>
 
-            <div className='FormDiv'>
-                <label>Confirm Password</label>
-                <input
-                    type = "password"
-                    placeholder = "Confirm password"
-                    value = {confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-            </div>
+            <button 
+              onClick={onSubmit} 
+              className="btn btn-primary w-100 py-2 fw-bold"
+            >
+              Sign Up
+            </button>
 
-            <button onClick={onSubmit}>Sign Up</button>
-
-            <p>Already have an account? <Link to="/login">Login</Link></p>
-
+            <p className="text-center mt-3 mb-0">
+              Already have an account? <Link to="/login" className="text-decoration-none">Login</Link>
+            </p>
+          </div>
         </div>
-    );
+      </div>
+    </div>
+  </div>
+);
+
 }
 
 export default Signup;

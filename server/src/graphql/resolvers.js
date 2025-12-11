@@ -1,11 +1,20 @@
 import { ObjectId } from 'mongodb';
-import { users } from "../db_config/mongoCollections.js";
+import { users, saved_places, reviews } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
+import * as savedPlaceFunctions from '../db_functions/saved_places.js';
+
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
 import { client } from '../server.js';
+
+import { 
+    indexSavedPlace, 
+    updateSavedPlaceIndex, 
+    deleteSavedPlaceIndex 
+} from '../config/elasticsearch.js';
+
 //Some helpers
 const CACHE_KEYS = {
     USER: (id) => `user:${id}`,
@@ -19,10 +28,12 @@ const CACHE_KEYS = {
     SEARCH_USERS: (query) => `search:users:${query.toLowerCase()}`
 };
 
+
 const isValidObjectId = (id) => {
     if (!id || id.trim() == '') {return false;}
     return ObjectId.isValid(id.trim());
 };
+
 const convertUser = (user) => {
     if (!user) {
         return null;
@@ -39,6 +50,7 @@ const convertUser = (user) => {
         reviews: [],
     };
 };
+
 const convertReview = (review) => {
     if (!review)
         return null;
@@ -53,6 +65,20 @@ const convertReview = (review) => {
         notes: review.notes || ''
     };
 };
+
+const convertSavedPlace = (place) => {
+    if (!place) return null;
+    return {
+        id: place._id?.toString() || place._id,
+        name: place.name,
+        description: place.description || '',
+        city: place.city,
+        country: place.country,
+        photos: place.photos || [],
+        reviews: []
+    };
+};
+
 export const resolvers = {
     Query: {
         getUser: async (_, { id }) => {
@@ -176,20 +202,57 @@ export const resolvers = {
             await client.set(cacheKey, JSON.stringify(reviews.map(convertReview)));
             return reviews.map(convertReview);
         },
-        getSavedPlaces: async (_, { userId }) => {
+        getSavedPlace: async (_, { placeId }) => {
+            if (!isValidObjectId(placeId)) {
+                throw new Error('Invalid place ID format');
+            }
+            const place = await savedPlaceFunctions.getSavedPlaceById(placeId);
+            if (!place) {
+                throw new Error('Saved place not found');
+            }
+            return convertSavedPlace(place);
+        },
+        getUserSavedPlaces: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
-            const cacheKey = CACHE_KEYS.SAVED_PLACES(userId.trim());
-            const cachedPlaces = await client.get(cacheKey);
-            if (cachedPlaces) {
-                console.log(`Cache Hit: ${cacheKey}`);
-                return JSON.parse(cachedPlaces);
-            }
-            const savedPlaces = await userFunctions.getSavedPlaces(userId);
-            await client.set(cacheKey, JSON.stringify(savedPlaces));
-            return savedPlaces;
+            const places = await savedPlaceFunctions.getUserSavedPlaces(userId);
+            return places.map(convertSavedPlace);
+        },
+searchSavedPlaces: async (_, { query, userId }) => {
+    // Validate query first
+    if (!query || query.trim() === '') {
+        throw new Error('Search query cannot be empty');
+    }
+    if (query.length < 2) {
+        throw new Error('Search query must be at least 2 characters long');
+    }
+    
+    // Only use cache if userId is provided
+    if (userId) {
+        const cacheKey = CACHE_KEYS.SAVED_PLACES(userId.trim());
+        const cachedPlaces = await client.get(cacheKey);
+        if (cachedPlaces) {
+            console.log(`Cache Hit: ${cacheKey}`);
+            return JSON.parse(cachedPlaces);
         }
+    }
+    
+    // Use Elasticsearch for search
+    const places = await savedPlaceFunctions.searchSavedPlacesElastic(
+        query.trim(), 
+        userId || null
+    );
+    const savedPlaces = places.map(convertSavedPlace);
+    
+    // Only cache if userId is provided
+    if (userId) {
+        const cacheKey = CACHE_KEYS.SAVED_PLACES(userId.trim());
+        await client.set(cacheKey, JSON.stringify(savedPlaces));
+    }
+    
+    return savedPlaces;
+}
     },
     Mutation: {
         createUser: async (_, { username, firstName, lastName, password }) => {
@@ -247,7 +310,6 @@ export const resolvers = {
 
             return convertUser(user);
         },
-        sendFriendRequest: async (_, { currentUserId, friendUsername }, {session}) => {
         logout: async (_, __, { session }) => {
             try {
                 session.destroy();
@@ -257,7 +319,7 @@ export const resolvers = {
                 throw new GraphQLError('Error logging out');
             }
         },
-        sendFriendRequest: async (_, { currentUserId, friendUsername }) => {
+        sendFriendRequest: async (_, { currentUserId, friendUsername }, { session }) => {
             if (!isValidObjectId(currentUserId)) {
                 throw new Error('Invalid user ID format');
             }
@@ -277,7 +339,7 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        acceptFriendRequest: async (_, { currentUserId, friendId }, {session}) => {
+        acceptFriendRequest: async (_, { currentUserId, friendId }, { session }) => {
             if (!isValidObjectId(currentUserId) || !isValidObjectId(friendId)) {
                 throw new Error('Invalid user ID format');
             }
@@ -292,7 +354,7 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        rejectFriendRequest: async (_, { currentUserId, friendId }, {session}) => {
+        rejectFriendRequest: async (_, { currentUserId, friendId }, { session }) => {
             if (!isValidObjectId(currentUserId) || !isValidObjectId(friendId)) {
                 throw new Error('Invalid user ID format');
             }
@@ -307,7 +369,7 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        removeFriend: async (_, { currentUserId, friendId }, {session}) => {
+        removeFriend: async (_, { currentUserId, friendId }, { session }) => {
             if (!isValidObjectId(currentUserId) || !isValidObjectId(friendId)) {
                 throw new Error('Invalid user ID format');
             }
@@ -322,7 +384,7 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        createReview: async (_, { userId, placeId, placeName, rating, notes }, {session}) => {
+        createReview: async (_, { userId, placeId, placeName, rating, notes }, { session }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
@@ -343,7 +405,7 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        deleteReview: async (_, { userId, reviewId }, {session}) => {
+        deleteReview: async (_, { userId, reviewId }, { session }) => {
             if (!isValidObjectId(userId) || !isValidObjectId(reviewId)) {
                 throw new Error('Invalid ID format');
             }
@@ -358,7 +420,7 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        addSavedPlace: async (_, { userId, placeId }, {session}) => {
+        addSavedPlace: async (_, { userId, placeId }, { session }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
@@ -371,7 +433,7 @@ export const resolvers = {
             if (res) {await client.flushAll();}
             return res; //true if modified, false otherwise
         },
-        removeSavedPlace: async (_, { userId, placeId }) => {
+        removeSavedPlace: async (_, { userId, placeId }, { session }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
@@ -383,6 +445,83 @@ export const resolvers = {
             const res = await userFunctions.removeSavedPlace(userId, placeId.trim());
             if (res) {await client.flushAll();}
             return res; //true if modified, false otherwise
+        },
+        createSavedPlace: async (_, { userId, name, description, city, country, photos }, { session }) => {
+            if (!isValidObjectId(userId)) {
+                throw new Error('Invalid user ID format');
+            }
+            if (!name.trim() || !city.trim() || !country.trim()) {
+                throw new Error('Name, city, and country are required');
+            }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== userId.trim()) throw new Error('Cannot perform action as another user');
+            try {
+                const place = await savedPlaceFunctions.createSavedPlace(
+                    userId,
+                    name.trim(),
+                    description?.trim(),
+                    city.trim(),
+                    country.trim(),
+                    photos || []
+                );
+                return convertSavedPlace(place);
+            } catch (error) {
+                throw new Error(error.message);
+            }
+        },
+        updateSavedPlace: async (_, { placeId, name, description, city, country, photos }, { session }) => {
+            if (!isValidObjectId(placeId)) {
+                throw new Error('Invalid place ID format');
+            }
+            if (!session.userId) throw new Error('Not authenticated');
+            try {
+                const updates = {};
+                if (name !== undefined) updates.name = name.trim();
+                if (description !== undefined) updates.description = description.trim();
+                if (city !== undefined) updates.city = city.trim();
+                if (country !== undefined) updates.country = country.trim();
+                if (photos !== undefined) updates.photos = photos;
+
+                const updatedPlace = await savedPlaceFunctions.updateSavedPlace(placeId, updates);
+                return convertSavedPlace(updatedPlace);
+            } catch (error) {
+                throw new Error(error.message);
+            }
+        },
+        deleteSavedPlace: async (_, { userId, placeId }, { session }) => {
+            if (!isValidObjectId(userId) || !isValidObjectId(placeId)) {
+                throw new Error('Invalid ID format');
+            }
+            if (!session.userId) throw new Error('Not authenticated');
+            if (session.userId.trim() !== userId.trim()) throw new Error('Cannot perform action as another user');
+            try {
+                const success = await savedPlaceFunctions.deleteSavedPlace(userId, placeId);
+                return success;
+            } catch (error) {
+                throw new Error(error.message);
+            }
+        },
+        addPhotoToPlace: async (_, { placeId, photoUrl }, { session }) => {
+            if (!isValidObjectId(placeId)) {
+                throw new Error('Invalid place ID format');
+            }
+            if (!photoUrl.trim()) {
+                throw new Error('Photo URL is required');
+            }
+            if (!session.userId) throw new Error('Not authenticated');
+            const res = await savedPlaceFunctions.addPhotoToPlace(placeId, photoUrl.trim());
+            return res;
+        },
+        removePhotoFromPlace: async (_, { placeId, photoUrl }, { session }) => {
+            if (!isValidObjectId(placeId)) {
+                throw new Error('Invalid place ID format');
+            }
+            if (!photoUrl.trim()) {
+                throw new Error('Photo URL is required');
+            }
+            if (!session.userId) throw new Error('Not authenticated');
+            const res = await savedPlaceFunctions.removePhotoFromPlace(placeId, photoUrl.trim());
+            return res;
         }
     },
     //Field resolvers
@@ -406,6 +545,22 @@ export const resolvers = {
             const requestIds = parent.receivedFriendRequests.map((id) => new ObjectId(id));
             const requests = await usersCollection.find({ _id: { $in: requestIds } }).toArray();
             return requests.map(convertUser);
+        }
+    },
+    SavedPlace: {
+        reviews: async (parent) => {
+            if (!parent.reviews || parent.reviews.length === 0) {
+                return [];
+            }
+            // If reviews are already converted
+            if (typeof parent.reviews[0] === 'object' && parent.reviews[0].placeName) {
+                return parent.reviews;
+            }
+            // Otherwise fetch them
+            const reviewsCollection = await reviews();
+            const reviewIds = parent.reviews.map(id => new ObjectId(id));
+            const reviewList = await reviewsCollection.find({ _id: { $in: reviewIds } }).toArray();
+            return reviewList.map(convertReview);
         }
     }
 };

@@ -5,6 +5,8 @@ import {expressMiddleware} from '@apollo/server/express4';
 import {typeDefs} from './graphql/typeDefs.js';
 import {resolvers} from './graphql/resolvers.js';
 import { createClient } from 'redis';
+import { initializeElasticsearch } from './config/elasticsearch.js';
+
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -28,6 +30,14 @@ export const client = createClient({
 });
 
 await client.connect();
+
+try {
+    await initializeElasticsearch();
+    console.log('Successs Elasticsearch initialized');
+} catch (error) {
+    console.error('Error  Elasticsearch initialization failed:', error.message);
+    console.log('Error Server will continue without Elasticsearch search');
+}
 
 app.use(session({
     name: 'AuthenticationState', 

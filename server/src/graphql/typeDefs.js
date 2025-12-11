@@ -26,6 +26,16 @@ export const typeDefs = `#graphql
         message: String!
     }
 
+    type SavedPlace {
+    id: ID!
+    name: String!
+    description: String
+    city: String!
+    country: String!
+    photos: [String!]!
+    reviews: [Review!]!
+}
+
     type Query {
         getUser(id: ID!): User
         getUserByUsername(username: String!): User
@@ -38,7 +48,10 @@ export const typeDefs = `#graphql
         getUserReviews(userId: ID!): [Review!]!
         getReviewsByPlace(placeId: String!): [Review!]!
 
-        getSavedPlaces(userId: ID!): [String!]!
+        getSavedPlace(placeId: ID!): SavedPlace
+        getUserSavedPlaces(userId: ID!): [SavedPlace!]! 
+        searchSavedPlaces(query: String!, userId: ID): [SavedPlace!]!
+        autocompleteSavedPlaces(prefix: String!): [String!]!
     }
 
     type Mutation {
@@ -69,5 +82,27 @@ export const typeDefs = `#graphql
 
         addSavedPlace(userId: ID!, placeId: String!): Boolean!
         removeSavedPlace(userId: ID!, placeId: String!): Boolean!
+
+        createSavedPlace(
+        userId: ID!
+        name: String!
+        description: String
+        city: String!
+        country: String!
+        photos: [String!]
+        ): SavedPlace!
+
+        updateSavedPlace(
+            placeId: ID!
+            name: String
+            description: String
+            city: String
+            country: String
+            photos: [String!]
+        ): SavedPlace!
+
+        deleteSavedPlace(userId: ID!, placeId: ID!): Boolean!
+        addPhotoToPlace(placeId: ID!, photoUrl: String!): Boolean!
+        removePhotoFromPlace(placeId: ID!, photoUrl: String!): Boolean!
     }
 `;
