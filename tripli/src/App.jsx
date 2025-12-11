@@ -39,7 +39,7 @@ function App() {
             element={<Signup setIsLoggedIn={setIsLoggedIn} setCurrentUserId={setCurrentUserId} />}
           />
           <Route path="/feed" element={<Feed />} />
-          <Route path="/friends/:userId" element={<Friends />} />
+          <Route path="/friends" element={<Friends />} />
           <Route path="/profile/:userId" element={<UserProfile />} />
           <Route path="/place/:placeId" element={<PlaceDetail />} />
         </Routes>
