@@ -159,7 +159,7 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <Link className="nav-link" to={`/friends/${currentUserId}`}>
+                  <Link className="nav-link" to={`/friends/`}>
                     Friends
                   </Link>
                 </li>
