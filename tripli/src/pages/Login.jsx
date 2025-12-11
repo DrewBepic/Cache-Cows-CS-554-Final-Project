@@ -36,12 +36,16 @@ function Login({ setIsLoggedIn, setCurrentUserId }) {
         }
 
         try {
-            await login({
+            const result = await login({
                 variables: {
                     username,
                     password
                 }
             });
+            if (result.data?.login?.id) {
+                localStorage.setItem('userId', result.data.login.id);
+                localStorage.setItem('username', result.data.login.username);
+            }
         }
         catch (err) {
             setError('Login failed. Please try again.');

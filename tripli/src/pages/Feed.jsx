@@ -3,8 +3,13 @@ import { Link, useNavigate  } from 'react-router-dom';
 import { LOGOUT } from '../queries';
 
 function Feed() {
+    const userId = localStorage.getItem('userId');
     const navigate = useNavigate();
-    const [logoutMutation] = useMutation(LOGOUT, {onCompleted: () => { navigate('/');}});
+    const [logoutMutation] = useMutation(LOGOUT, {onCompleted: () => {
+        localStorage.removeItem('userId');
+        localStorage.removeItem('username');
+        navigate('/');
+    }});
 
     const handleLogout = async () => {
         try {
@@ -20,7 +25,7 @@ function Feed() {
             <nav>
                 <Link to="/feed">Feed</Link>
                 <Link to="/leaderboard">Leaderboard</Link>
-                <Link to="/profile">User Profile</Link>
+                <Link to={`/profile/${userId}`}>User Profile</Link>
                 <Link to="/friends">Friends</Link>
                 <button onClick={handleLogout}>Logout</button>
             </nav>

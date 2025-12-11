@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { 
   Container, Row, Col, Card, Button, Alert, Spinner, ListGroup, Form,
@@ -18,7 +18,7 @@ import {
 
 // helper funcs
 
-const renderUserAvatar = (user, bgColor = 'primary', size = 50) => (
+const renderUserAvatar = (user, bgColor = 'primary') => (
     <div 
         className={`bg-${bgColor} text-white rounded-circle d-flex align-items-center justify-content-center me-3`}
     >
@@ -263,7 +263,7 @@ const SearchUsersTab = ({ searchQuery, setSearchQuery, searchResults, searchLoad
 };
 
 function Friends() {
-    const { userId } = useParams();
+    const userId = localStorage.getItem('userId');
     const [activeTab, setActiveTab] = useState('current-friends');
     const [friendUsername, setFriendUsername] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -271,6 +271,21 @@ function Friends() {
     const [searchLoading, setSearchLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+
+    //make sure user is logged in before messing with anything
+    if (!userId) {
+        return (
+            <Container className="my-5">
+                <Alert variant="warning">
+                    <Alert.Heading>Log In</Alert.Heading>
+                    <p>You need to be logges in to view and manage friends.</p>
+                    <Link to="/login">Go to Login</Link>
+                </Alert>
+            </Container>
+        );
+    }
+
+
 
     // get current user info
     const { loading: userLoading, error: userError, data: userData } = useQuery(GET_USER, {
