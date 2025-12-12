@@ -6,7 +6,7 @@ import {typeDefs} from './graphql/typeDefs.js';
 import {resolvers} from './graphql/resolvers.js';
 import { createClient } from 'redis';
 import { initializeElasticsearch } from './config/elasticsearch.js';
-import { importCitiesIfEmpty } from './db_functions/import_us_cities.js';
+import { importCitiesIfEmpty } from './db_functions/import_cities.js';
 
 
 const app = express();
@@ -69,12 +69,12 @@ app.use('/graphql', expressMiddleware(server, {
 try {
     const res = await importCitiesIfEmpty();
     if (res && res.imported) {
-        console.log(`Imported ${res.imported} us_cities documents on startup.`);
+        console.log(`Imported ${res.imported} cities documents on startup.`);
     } else if (res && res.reason) {
         console.log('Import skipped:', res.reason);
     }
 } catch (err) {
-    console.error('Failed to import US cities:', err);
+    console.error('Failed to import cities:', err);
 }
 
 app.listen(PORT, () => {
