@@ -1,8 +1,9 @@
 /*Add tabs so that they are available on every page after login if we want*/
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery, useMutation } from '@apollo/client';
 import { gql } from '@apollo/client';
+import { LOGOUT } from '../queries';
 
 // GraphQL Query for searching saved places defined in the backend using elasticsearch
 const SEARCH_SAVED_PLACES = gql`
@@ -18,11 +19,30 @@ const SEARCH_SAVED_PLACES = gql`
 `;
 
 function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId }) {
+  const userId = localStorage.getItem('userId');
   const navigate = useNavigate();
+  const [logoutMutation] = useMutation(LOGOUT, {
+    onCompleted: () => {
+      localStorage.removeItem('userId');
+      localStorage.removeItem('username');
+      navigate('/');
+    }
+  });
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggedIn(false);
+      setCurrentUserId(null);
+      await logoutMutation();
+    }
+    catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery.trim().length >= 2) {
@@ -43,11 +63,11 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
     }
   });
 
-  const handleLogout = () => {
+  /*const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUserId(null);
     navigate('/');
-  };
+  }; */
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -59,7 +79,7 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    
+
     // Clear results if search is too short, also elasticsearch won't handle it well
     if (value.trim().length < 2) {
       setSearchResults([]);
@@ -85,11 +105,11 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
         <Link className="navbar-brand" to="/">
           Tripli
         </Link>
-        
-        
+
+
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav me-auto"></ul>
-          
+
           <div className="me-3" style={{ maxWidth: '400px', width: '100%', position: 'relative' }}>
             <form className="d-flex" onSubmit={handleSearch}>
               <input
@@ -106,11 +126,11 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
             </form>
             {/* if there is result */}
             {showResults && searchResults.length > 0 && (
-              <div 
+              <div
                 className="position-absolute bg-white rounded shadow-lg"
-                style={{ 
-                  top: 'calc(100% + 8px)', 
-                  left: 0, 
+                style={{
+                  top: 'calc(100% + 8px)',
+                  left: 0,
                   right: 0,
                   zIndex: 1000,
                   maxHeight: '400px',
@@ -139,11 +159,11 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
 
             {/* No Results Message */}
             {showResults && searchResults.length === 0 && searchQuery.trim().length >= 2 && !loading && (
-              <div 
+              <div
                 className="position-absolute bg-white rounded shadow"
-                style={{ 
-                  top: 'calc(100% + 8px)', 
-                  left: 0, 
+                style={{
+                  top: 'calc(100% + 8px)',
+                  left: 0,
                   right: 0,
                   zIndex: 1000
                 }}
@@ -177,8 +197,8 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <button 
-                    className="btn btn-outline-light ms-2" 
+                  <button
+                    className="btn btn-outline-light ms-2"
                     onClick={handleLogout}
                   >
                     Logout

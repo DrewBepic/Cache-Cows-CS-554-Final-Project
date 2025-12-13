@@ -1,5 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import './App.css';
 import Navigation from './components/Navigation';
@@ -15,6 +15,26 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    const savedUserId = localStorage.getItem('currentUserId');
+    const savedIsLoggedIn = localStorage.getItem('isLoggedIn');
+    
+    if (savedIsLoggedIn === 'true' && savedUserId) {
+      setIsLoggedIn(true);
+      setCurrentUserId(savedUserId);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoggedIn && currentUserId) {
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('currentUserId', currentUserId);
+    } else {
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('currentUserId');
+    }
+  }, [isLoggedIn, currentUserId]);
 
   return (
     <div>
