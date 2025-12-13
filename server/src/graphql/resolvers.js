@@ -74,6 +74,10 @@ const convertSavedPlace = (place) => {
         description: place.description || '',
         city: place.city,
         country: place.country,
+        addresss: place['Address (vicinity)'] || place.address,
+        geolocation: place.geolocation || { lat: 0, lng: 0 },
+        rating: place.rating,
+        types: place.types || [],
         photos: place.photos || [],
         reviews: []
     };

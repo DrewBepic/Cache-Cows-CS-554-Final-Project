@@ -26,13 +26,23 @@ export const typeDefs = `#graphql
         message: String!
     }
 
+    // Part of SavedPlace
+    type GeoLocation {
+        lat: Float
+        lng: Float
+    }
+
     type SavedPlace {
     id: ID!
     name: String!
     description: String
     city: String!
     country: String!
+    address: String
     photos: [String!]!
+    rating: Float       // Updated the schema based on the one we decided on, edit if needed 
+    phoneNumber: String
+    types: [String!]
     reviews: [Review!]!
 }
 

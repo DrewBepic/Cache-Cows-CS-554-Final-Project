@@ -41,7 +41,8 @@ function App() {
           <Route path="/feed" element={<Feed />} />
           <Route path="/friends" element={<Friends />} />
           <Route path="/profile/:userId" element={<UserProfile />} />
-          <Route path="/place/:placeId" element={<PlaceDetail />} />
+          {/* Temporaily, not sure yet if we should require users to be logged in to view places */}
+          <Route path="/place/:placeId" element={<PlaceDetail setCurrentUserId={setCurrentUserId}/>} /> 
         </Routes>
       </div>
     </div>
