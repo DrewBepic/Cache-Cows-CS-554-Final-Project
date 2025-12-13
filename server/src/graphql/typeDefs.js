@@ -1,4 +1,5 @@
 export const typeDefs = `#graphql
+
     type User {
         id: ID!
         username: String!
@@ -26,24 +27,23 @@ export const typeDefs = `#graphql
         message: String!
     }
 
-    // Part of SavedPlace
     type GeoLocation {
         lat: Float
         lng: Float
     }
 
     type SavedPlace {
-    id: ID!
-    name: String!
-    description: String
-    city: String!
-    country: String!
-    address: String
-    photos: [String!]!
-    rating: Float       // Updated the schema based on the one we decided on, edit if needed 
-    phoneNumber: String
-    types: [String!]
-    reviews: [Review!]!
+        id: ID!
+        name: String!
+        description: String
+        city: String!
+        country: String!
+        address: String
+        photos: [String!]!
+        rating: Float
+        phoneNumber: String
+        types: [String!]
+        reviews: [Review!]!
 }
 
     type Query {
@@ -57,6 +57,7 @@ export const typeDefs = `#graphql
 
         getUserReviews(userId: ID!): [Review!]!
         getReviewsByPlace(placeId: String!): [Review!]!
+        getSavedPlaces(userId: ID!): [String!]!
 
         getSavedPlace(placeId: ID!): SavedPlace
         getUserSavedPlaces(userId: ID!): [SavedPlace!]! 
