@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { users } from "../db_config/mongoCollections.js";
+import { users, cities } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
@@ -112,6 +112,27 @@ export const resolvers = {
                 throw new Error('Invalid user ID format');
             }
             return await userFunctions.getSavedPlaces(userId);
+        },
+        searchCities: async (_, { query }) => {
+            const trimmed = query?.trim().toLowerCase();
+
+            if (!trimmed || trimmed.length < 1) {
+                throw new Error('Search query must be at least 1 characters');
+            }
+
+            const citiesCollection = await cities();
+            const allCities = await citiesCollection.find({}).toArray();
+
+            const results = allCities
+                .filter(city => city.name.toLowerCase().includes(trimmed))
+                .slice(0, 50);
+
+            return results.map(city => ({
+                name: city.name,
+                country: city.country,
+                lat: parseFloat(city.lat),
+                lng: parseFloat(city.lng),
+            }));
         }
     },
     Mutation: {
@@ -129,12 +150,12 @@ export const resolvers = {
                 last_name: lastName.trim(),
                 password: password.trim()
             });
-        
+
             const dbUser = await userFunctions.findUserByUsername(cleanUsername);
             if (dbUser) {
                 await client.set(`user:username:${cleanUsername}`, JSON.stringify(dbUser));
             }
-            
+
             return convertUser(user);
         },
         login: async (_, { username, password }, { session }) => {

@@ -10,6 +10,8 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Feed from './pages/Feed';
 import PlaceDetail from './pages/PlaceDetail';
+import Search from './pages/Search';
+import SearchResults from './pages/SearchResults';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
@@ -64,6 +66,8 @@ function App() {
           <Route path="/profile/:userId" element={<UserProfile />} />
           {/* Temporaily, not sure yet if we should require users to be logged in to view places */}
           <Route path="/place/:placeId" element={<PlaceDetail setCurrentUserId={setCurrentUserId}/>} /> 
+          <Route path="/search" element={<Search />} />
+          <Route path="/search/results" element={<SearchResults />} />
         </Routes>
       </div>
     </div>
