@@ -2,30 +2,37 @@ import { Link } from 'react-router-dom';
 
 function Home({ isLoggedIn, userId }) {
   return (
-    <div className="container">
-      <div className="row min-vh-100 align-items-center">
-        <div className="col-12 text-center">
-          <h1 className="display-1 mb-4">Welcome to Tripli!</h1>
-          
-          {isLoggedIn ? (
-            <div className="d-grid gap-3 col-6 mx-auto">
-              <Link to="/feed" className="btn btn-primary btn-lg">
-                Go to Feed
-              </Link>
-              <Link to={`/profile/${userId}`} className="btn btn-outline-primary btn-lg">
-                View Profile
-              </Link>
-            </div>
-          ) : (
-            <div className="d-grid gap-3 col-6 mx-auto">
-              <Link to="/login" className="btn btn-primary btn-lg">
+    <div className="home-container">
+      <div className="main-header">
+        <h1 className="home-title">Welcome to Tripli!</h1>
+        <p className="home-subtitle">Travel. Share. Discover. Connect.</p>
+      </div>
+      
+      <div className="main-content">
+        <div className="slideshow-section">
+          <div className="slideshow">
+            <img className="slide slide1" src="/japan.jpg" alt="Japan" />
+            <img className="slide slide2" src="/paris.jpg" alt="Paris" />
+            <img className="slide slide3" src="/petersburg.jpg" alt="Petersburg" />
+            <img className="slide slide4" src="/sanfran.jpg" alt="San Francisco" />
+            <img className="slide slide5" src="/usa.jpg" alt="USA" />
+          </div>
+          <p className="slideshow-caption">Discover new amazing destinations around the globe</p>
+        </div>
+
+        <div className="user-section">
+          <div className="user-card">
+            <h2 className="user-title">Become a Tripli Explorer Today</h2>
+            <p className="user-description">Share your journeys, discover new destinations, and make lasting memories.</p>
+            <div className="button-container">
+              <Link to="/login" className="button">
                 Login
               </Link>
-              <Link to="/signup" className="btn btn-outline-primary btn-lg">
+              <Link to="/signup" className="button">
                 Sign Up
               </Link>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

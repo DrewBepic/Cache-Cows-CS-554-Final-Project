@@ -75,6 +75,9 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
     navigate(`/place/${placeId}`);
   };
 
+  if (!isLoggedIn) {
+    return null;
+  }
 
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -98,7 +101,7 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
                 aria-label="Search"
               />
               <button className="btn btn-outline-light" type="submit" disabled={loading}>
-                search
+                Search
               </button>
             </form>
             {/* if there is result */}
@@ -156,6 +159,11 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
                 <li className="nav-item">
                   <Link className="nav-link" to="/feed">
                     Feed
+                  </Link>
+                </li>
+                <li className="nav-item">
+                  <Link className="nav-link" to="/leaderboard">
+                    Leaderboard
                   </Link>
                 </li>
                 <li className="nav-item">
