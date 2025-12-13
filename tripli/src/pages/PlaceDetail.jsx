@@ -9,7 +9,7 @@ const GET_SAVED_PLACE = gql`
       address
       city
       country
-      phoneNumber // Updated based on the schema we decided on, if changes let Ryan know
+      phoneNumber
       rating
       types
       photos
@@ -21,7 +21,6 @@ const GET_SAVED_PLACE = gql`
         createdAt
       }
     }
-    // Needed later to get reviews for friends
     getFriends(userId: $userId) {
       id
       username
