@@ -40,6 +40,23 @@ const convertReview = (review) => {
         notes: review.notes || ''
     };
 };
+const convertSavedPlace = (place) => {
+    if(!place) {
+        return null;
+    }
+    return {
+        id: place._id?.toString() || place._id,
+        name: place.name,
+        description: place.description || 'No description given.',
+        city: place.city,
+        address: place['Address (approximately)'] || place.address,
+        rating: place.rating,
+        phoneNumber: place.phone_number,    // based off schema
+        types: place.types || [],
+        photos: place.photos || [],
+        reviews: []
+    }
+};
 export const resolvers = {
     Query: {
         getUser: async (_, { id }) => {

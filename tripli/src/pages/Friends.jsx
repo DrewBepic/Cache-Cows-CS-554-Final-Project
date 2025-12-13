@@ -278,7 +278,7 @@ function Friends() {
             <Container className="my-5">
                 <Alert variant="warning">
                     <Alert.Heading>Log In</Alert.Heading>
-                    <p>You need to be logges in to view and manage friends.</p>
+                    <p>You need to be logged in to view and manage friends.</p>
                     <Link to="/login">Go to Login</Link>
                 </Alert>
             </Container>
