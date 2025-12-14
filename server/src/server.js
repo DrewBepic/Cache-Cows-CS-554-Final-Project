@@ -7,6 +7,8 @@ import {resolvers} from './graphql/resolvers.js';
 import { createClient } from 'redis';
 import { initializeElasticsearch } from './config/elasticsearch.js';
 import { importCitiesIfEmpty } from './db_functions/import_cities.js';
+import axios from 'axios';
+import 'dotenv/config';
 
 
 const app = express();
@@ -76,6 +78,26 @@ try {
 } catch (err) {
     console.error('Failed to import cities:', err);
 }
+
+app.get('/api/maps/places', async (req, res) => {
+    const { lat, lng, type } = req.query;
+
+    if (!lat || !lng || !type) {
+        return res.status(400).json({ error: 'Missing required query parameters' });
+    }
+
+    try {
+        const googleKey = process.env.VITE_GOOGLE_MAPS_API_KEY;
+        const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=5000&type=${type}&key=${googleKey}`;
+        console.log('Fetching Google Maps places with URL:', url);
+        const response = await axios.get(url);
+        // console.log(response)
+        res.json(response.data);
+    } catch (err) {
+        console.error('Error fetching Google Maps places:', err.message);
+        res.status(500).json({ error: 'Failed to fetch places' });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`🚀 Server ready at: http://localhost:${PORT}/graphql`);
