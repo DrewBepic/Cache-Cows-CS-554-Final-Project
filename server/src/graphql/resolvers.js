@@ -40,7 +40,8 @@ const convertReview = (review) => {
             review.user_id.toString() : review.user_id,
         createdAt: review.createdAt?.toISOString(),
         rating: review.rating,
-        notes: review.notes || ''
+        notes: review.notes || '',
+        photos: review.photos || []
     };
 };
 const convertSavedPlace = (place) => {
