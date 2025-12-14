@@ -3,6 +3,8 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { SEARCH_CITIES } from '../queries';
 
+const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
 const ENTERTAINMENT_TYPES = [
     { value: 'entertainment.activity_park', label: 'Activity Park' },
     { value: 'entertainment.activity_park.climbing', label: 'Climbing Park' },
@@ -47,7 +49,13 @@ export default function SearchResults() {
 
     const handleSearch = () => {
         if (selectedCity && entertainmentType) {
+            console.log(import.meta.env);
+            console.log(key)
+            let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${selectedCity.lat},${selectedCity.lng}&radius=5000&type=${entertainmentType}&key=${key}`;
+            console.log('Searching entertainment with URL:', url);
             // ANDREW CALL THE API HERE OR ELSE
+        }else{
+            alert('Please select a city and entertainment type.');
         }
     };
 
@@ -58,7 +66,7 @@ export default function SearchResults() {
             </h3>
 
             {!isValid && <p className="hint-text">Enter at least one character to search.</p>}
-            {loading && <p className="loading-text">Searching…</p>}
+            {loading && <p className="loading-text">Searching...</p>}
             {error && <p className="error-text">Error: {error.message}</p>}
             {isValid && !loading && !error && !cities.length && <p className="empty-text">No cities found.</p>}
 
@@ -100,6 +108,12 @@ export default function SearchResults() {
                     >
                         Search Entertainment
                     </button>
+                </div>
+            )}
+            {selectedCity && entertainmentType && (
+                <div className="entertainment-results">
+                    <h5>Entertainment Results for {selectedCity.name} - {entertainmentType}</h5>
+                    {/* Render entertainment results here after API call */}
                 </div>
             )}
 
