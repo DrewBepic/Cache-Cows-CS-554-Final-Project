@@ -293,18 +293,23 @@ function Friends() {
         skip: !userId
     });
 
+    //i would like to have a conversation with prof hill on why apollo's caching was never mentioned in slides
+    //if it was...nvm...serv
+
     // get the users current friends
     const { loading: friendsLoading, error: friendsError, data: friendsData, refetch: refetchFriends} = useQuery(
         GET_FRIENDS, {
         variables: { userId },
-        skip: !userId
+        skip: !userId,
+        fetchPolicy: 'network-only'
     });
 
     // get their friend requests (aka made TO them)
     const { loading: requestsLoading, error: requestsError, data: requestsData, refetch: refetchRequests} = useQuery(
         GET_FRIEND_REQUESTS, {
         variables: { userId },
-        skip: !userId
+        skip: !userId,
+        fetchPolicy: 'network-only'
     });
 
     // Mutations
@@ -560,7 +565,7 @@ function Friends() {
                 </Alert>
             )}
 
-            {/* Main Tabs */}
+            {/* Tabs as they appear */}
             <Tabs
                 activeKey={activeTab}
                 onSelect={(k) => setActiveTab(k)}
@@ -572,7 +577,7 @@ function Friends() {
                 <Tab eventKey="search-users" title="Search Users" />
             </Tabs>
 
-            {/* Tab Content */}
+            {/* Actual content In the tab */}
             {renderTabContent()}
         </Container>
     );
