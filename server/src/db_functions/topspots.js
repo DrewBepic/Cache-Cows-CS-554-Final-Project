@@ -4,7 +4,7 @@ import * as friendFunctions from './friends.js';
 import * as userFunctions from './users.js';
 
 // Get global top rated spots
-export const getGlobalTopRatedSpots = async (limit = 50, country, city) => {
+export const getGlobalTopRatedSpots = async (limit = 10, country, city) => {
     const reviewsCol = await reviewsCollection();
     const savedPlacesCol = await saved_places();
     // add aggregation pipeline to calculate average ratings and review counts
@@ -32,6 +32,7 @@ export const getGlobalTopRatedSpots = async (limit = 50, country, city) => {
     const placeDataMap = {};
     placesData.forEach(place => {
         placeDataMap[place.place_id] = {
+            savedPlaceId: place._id.toString(),
             city: place.city,
             country: place.country,
             address: place.address,
@@ -42,15 +43,18 @@ export const getGlobalTopRatedSpots = async (limit = 50, country, city) => {
     // Map aggregated reviews to TopRatedSpot format
     let results = aggregatedReviews.map(spot => {
         const placeData = placeDataMap[spot._id] || {};
+        if (!placeData.savedPlaceId) { 
+            return null;
+        }
         return {
-            placeId: spot._id,
+            placeId: placeData.savedPlaceId,//spot._id,
             placeName: spot.placeName,
             averageRating: parseFloat(spot.averageRating.toFixed(2)),
             reviewCount: spot.reviewCount,
             country: placeData.country || null,
             city: placeData.city || null
         };
-    });
+    }).filter(spot => spot !== null);
 
     // Apply filters
     if (country) {
@@ -68,7 +72,7 @@ export const getGlobalTopRatedSpots = async (limit = 50, country, city) => {
 };
 
 // Get user and friends top rated spots
-export const getUserAndFriendsTopRatedSpots = async (userId, limit = 50, country, city) => {
+export const getUserAndFriendsTopRatedSpots = async (userId, limit = 10, country, city) => {
     const user = await userFunctions.findUserById(userId);
     if (!user) {
         throw new Error('User not found');
@@ -77,7 +81,8 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 50, country
     const friends = await friendFunctions.getUserFriends(userId);
     const friendIds = friends.map(friend => new ObjectId(friend._id));
     // Combine user ID with friends' IDs
-    const allUserIds = [new ObjectId(userId), ...friendIds];
+    // const allUserIds = [new ObjectId(userId), ...friendIds];
+    const allUserIds = friendIds;
 
     const reviewsCol = await reviewsCollection();
     const savedPlacesCol = await saved_places();
@@ -107,6 +112,7 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 50, country
     const placeDataMap = {};
     placesData.forEach(place => {
         placeDataMap[place.place_id] = {
+            savedPlaceId: place._id.toString(), 
             city: place.city,
             country: place.country
         };
@@ -114,15 +120,19 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 50, country
     // Map aggregated reviews to TopRatedSpot format
     let results = aggregatedReviews.map(spot => {
         const placeData = placeDataMap[spot._id] || {};
+
+        if (!placeData.savedPlaceId) { 
+            return null;
+        }
         return {
-            placeId: spot._id,
+            placeId: placeData.savedPlaceId,//spot._id,
             placeName: spot.placeName,
             averageRating: parseFloat(spot.averageRating.toFixed(2)),
             reviewCount: spot.reviewCount,
             country: placeData.country || null,
             city: placeData.city || null,
         };
-    });
+    }).filter(spot => spot !== null);
 
     // Apply filters
     if (country) {
