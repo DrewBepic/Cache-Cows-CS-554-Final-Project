@@ -1,8 +1,9 @@
 import { ObjectId } from 'mongodb';
-import { users, cities } from "../db_config/mongoCollections.js";
+import { users, cities, reviews as reviewsCollection, saved_places } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
+import * as topspotFunctions from '../db_functions/topspots.js';
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
 import { client } from '../server.js';
@@ -134,7 +135,29 @@ export const resolvers = {
                 lat: parseFloat(city.lat),
                 lng: parseFloat(city.lng),
             }));
-        }
+        },
+getGlobalTopRatedSpots: async (_, { limit = 10, country, city }) => {
+    try {
+        const spots = await topspotFunctions.getGlobalTopRatedSpots(limit, country, city);
+        return spots.map(spot => ({
+            ...spot,
+            latestReview: convertReview(spot.latestReview)
+        }));
+    } catch (error) {
+        throw new Error(`Error fetching global top rated spots: ${error.message}`);
+    }
+},
+getUserAndFriendsTopRatedSpots: async (_, { userId, limit = 10, country, city }) => {
+    if (!isValidObjectId(userId)) {
+        throw new Error('Invalid user ID format');
+    }
+
+    try {
+        return await topspotFunctions.getUserAndFriendsTopRatedSpots(userId, limit, country, city);
+    } catch (error) {
+        throw new Error(`Error fetching user and friends top rated spots: ${error.message}`);
+    }
+},
     },
     Mutation: {
         createUser: async (_, { username, firstName, lastName, password }) => {
