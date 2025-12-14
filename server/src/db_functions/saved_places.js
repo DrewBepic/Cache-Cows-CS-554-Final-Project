@@ -1,4 +1,4 @@
-import { saved_places, users } from '../db_config/mongoCollections.js';
+import { saved_places, users, places } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
 import { 
     indexSavedPlace, 
@@ -162,12 +162,39 @@ export const searchSavedPlaces = async (searchTerm) => {
 
 // Add a review to a saved place
 export const addReviewToPlace = async (placeId, reviewId) => {
+    if (!ObjectId.isValid(placeId) || !ObjectId.isValid(reviewId)) return false;
+
     const savedPlacesCollection = await saved_places();
-    const result = await savedPlacesCollection.updateOne(
+    const objPlaceId = new ObjectId(placeId);
+    const objReviewId = new ObjectId(reviewId);
+
+    const updateResult = await savedPlacesCollection.updateOne(
         { _id: new ObjectId(placeId) },
         { $addToSet: { reviews: new ObjectId(reviewId) } }
     );
-    return result.modifiedCount > 0;
+    
+    if (updateResult.matchedCount > 0) return true;
+
+    // if not in saved places, now check places database
+    console.log(`Place ${placeId} not in directory. Checking places database`);
+    const cacheCollection = await places();
+    const cachedPlace = await cacheCollection.findOne({ _id: objPlaceId });
+
+    if (cachedPlace) {
+        await savedPlacesCollection.insertOne(cachedPlace);
+        
+        await cacheCollection.deleteOne({ _id: objPlaceId });
+        console.log(`brough ${placeId} from places to saved_places`);
+
+        // if a review is made, it is now a saved_place
+        const retryResult = await savedPlacesCollection.updateOne(
+            { _id: objPlaceId },
+            { $addToSet: { reviews: objReviewId } }
+        );
+        return retryResult.modifiedCount > 0;
+    }
+
+    return false;
 };
 
 // Remove a review from a saved place

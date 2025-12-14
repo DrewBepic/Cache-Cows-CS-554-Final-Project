@@ -15,10 +15,12 @@ export const typeDefs = `#graphql
     type Review {
         id: ID!
         userId: ID!
+        username: String
         placeId: String!
         placeName: String!
         rating: Int!
         notes: String
+        photos: [String]
         createdAt: String!
     }
 
@@ -41,17 +43,34 @@ export const typeDefs = `#graphql
 
     type SavedPlace {
         id: ID!
+        placeId: String
         name: String!
         description: String
-        city: String!
-        country: String!
+        city: String
+        country: String
         address: String
         photos: [String!]!
         rating: Float
+        tripliRating: Float
         phoneNumber: String
         types: [String!]
         reviews: [Review!]!
-}
+    }
+
+    type Place {
+        id: ID!
+        placeId: String!
+        name: String!
+        description: String
+        city: String
+        country: String
+        address: String
+        rating: Float
+        phoneNumber: String
+        types: [String!]
+        photos: [String!]
+        reviews: [Review!]
+    }
 
     type NearbyPlace {
         placeId: String!
@@ -93,6 +112,7 @@ export const typeDefs = `#graphql
         autocompleteSavedPlaces(prefix: String!): [String!]!
         searchNearbyPlaces(lat: Float!, lng: Float!, type: String!): [NearbyPlace!]!
         searchCities(query: String!): [City!]!
+        getPlace(id: ID!): SavedPlace
         
         getGlobalTopRatedSpots(limit: Int, country: String, city: String): [TopRatedSpot!]!
         getUserAndFriendsTopRatedSpots(userId: ID!, limit: Int, country: String, city: String): [TopRatedSpot!]!
@@ -120,6 +140,7 @@ export const typeDefs = `#graphql
             placeName: String!
             rating: Int!
             notes: String
+            photos: [String]
         ): Review!
 
         deleteReview(userId: ID!, reviewId: ID!): Boolean!
@@ -148,5 +169,7 @@ export const typeDefs = `#graphql
         deleteSavedPlace(userId: ID!, placeId: ID!): Boolean!
         addPhotoToPlace(placeId: ID!, photoUrl: String!): Boolean!
         removePhotoFromPlace(placeId: ID!, photoUrl: String!): Boolean!
+
+        importGooglePlace(googlePlaceId: String!): SavedPlace!
     }
 `;

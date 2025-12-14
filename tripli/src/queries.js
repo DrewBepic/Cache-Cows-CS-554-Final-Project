@@ -7,6 +7,7 @@ export const GET_USER = gql`
       username
       firstName
       lastName
+      savedPlaces
     }
   }
 `;
@@ -138,14 +139,15 @@ export const REMOVE_FRIEND = gql`
 `;
 
 export const CREATE_REVIEW = gql`
-  mutation CreateReview($userId: ID!, $placeId: String!, $placeName: String!, $rating: Int!, $notes: String) {
-    createReview(userId: $userId, placeId: $placeId, placeName: $placeName, rating: $rating, notes: $notes) {
+  mutation CreateReview($userId: ID!, $placeId: String!, $placeName: String!, $rating: Int!, $notes: String, $photos: [String]) {
+    createReview(userId: $userId, placeId: $placeId, placeName: $placeName, rating: $rating, notes: $notes, photos: $photos) {
       id
       placeId
       placeName
       rating
       notes
       createdAt
+      photos
     }
   }
 `;
@@ -165,6 +167,33 @@ export const ADD_SAVED_PLACE = gql`
 export const REMOVE_SAVED_PLACE = gql`
   mutation RemoveSavedPlace($userId: ID!, $placeId: String!) {
     removeSavedPlace(userId: $userId, placeId: $placeId)
+  }
+`;
+
+export const GET_SAVED_PLACE = gql`
+  query GetSavedPlace($placeId: ID!) {
+    getSavedPlace(placeId: $placeId) {
+      id
+      name
+      address
+      city
+      country
+      phoneNumber
+      rating
+      tripliRating
+      types
+      photos
+      description
+      reviews {
+        id
+        userId
+        username
+        rating
+        notes
+        photos
+        createdAt
+      }
+    }
   }
 `;
 
@@ -210,6 +239,14 @@ export const SEARCH_CITIES = gql`
   }
 `;
 
+export const IMPORT_GOOGLE_PLACE = gql`
+  mutation ImportGooglePlace($googlePlaceId: String!) {
+    importGooglePlace(googlePlaceId: $googlePlaceId) {
+      id 
+      name
+    }
+  }
+`;
 export const GET_GLOBAL_TOP_SPOTS = gql`
   query GetGlobalTopRatedSpots($limit: Int, $city: String, $country: String) {
     getGlobalTopRatedSpots(limit: $limit, city: $city, country: $country) {
