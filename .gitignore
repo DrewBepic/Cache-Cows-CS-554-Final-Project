@@ -28,3 +28,4 @@ dist-ssr
 /tripli/.env
 /server/src/.env
 .env
+/server/src/photos
