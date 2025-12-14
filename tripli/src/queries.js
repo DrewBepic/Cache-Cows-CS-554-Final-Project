@@ -168,6 +168,30 @@ export const REMOVE_SAVED_PLACE = gql`
   }
 `;
 
+export const GET_SAVED_PLACE = gql`
+  query GetSavedPlace($placeId: ID!) {
+    getSavedPlace(placeId: $placeId) {
+      id
+      name
+      address
+      city
+      country
+      phoneNumber
+      rating
+      types
+      photos
+      description
+      reviews {
+        id
+        userId
+        rating
+        notes
+        createdAt
+      }
+    }
+  }
+`;
+
 export const CREATE_USER = gql`
 mutation CreateUser($username: String!, $firstName: String!, $lastName: String!, $password: String!) {
     createUser(username: $username, firstName: $firstName, lastName: $lastName, password: $password) {

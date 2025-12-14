@@ -1,59 +1,15 @@
-import { useParams } from 'react-router-dom';
-import { useQuery, gql, useMutation } from '@apollo/client';
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form } from 'react-bootstrap';
+import { useParams, Link } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client';
+import { useState } from 'react';
+import { Modal, Button, Form, Container, Alert, Card, Badge } from 'react-bootstrap';
+import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW } from '../queries';
 import '../PlaceDetail.css';
-
-const GET_SAVED_PLACE = gql`
-  query GetSavedPlace($placeId: ID!) {
-    getSavedPlace(placeId: $placeId) {
-      id
-      name
-      address
-      city
-      country
-      phoneNumber
-      rating
-      types
-      photos
-      reviews {
-        id
-        userId
-        rating
-        notes
-        createdAt
-      }
-    }
-    getFriends(userId: $userId) {
-      id
-      username
-    }
-  }
-`;
-
-// Modals to create and delete reviews, not implemented yet
-// Wanted to wait until we are able to pull the data from the API and soldified the schema - Ryan
-const CREATE_REVIEW = gql`
-  mutation CreateReview($userId: ID!, $placeId: String!, $placeName: String!, $rating: Int!, $notes: String) {
-    createReview(userId: $userId, placeId: $placeId, placeName: $placeName, rating: $rating, notes: $notes) {
-      id
-      rating
-      notes
-    }
-  }
-`;
-
-const DELETE_REVIEW = gql`
-  mutation DeleteReview($userId: ID!, $reviewId: ID!) {
-    deleteReview(userId: $userId, reviewId: $reviewId)
-  }
-`;
 
 function PlaceDetail({ userId }) {
   const { placeId } = useParams();
-  // Not yet fully implemented
   const [showModal, setShowModal] = useState(false);
   const [reviewForm, setReviewForm] = useState({ rating: 5, notes: '' });
+  const [validated, setValidated] = useState(false);
 
   if (!userId) {
       return (
@@ -68,7 +24,7 @@ function PlaceDetail({ userId }) {
   }
 
   const { loading, error, data, refetch } = useQuery(GET_SAVED_PLACE, {
-    variables: { placeId, userId }
+    variables: { placeId }
   });
 
   const [createReview] = useMutation(CREATE_REVIEW);
@@ -78,17 +34,27 @@ function PlaceDetail({ userId }) {
   if (error) return <div className="container mt-5"><p>Error loading place</p></div>;
   if (!data) return null;
 
-  const place = data.getSavedPlace;
-  const friends = data.getFriends;
+  const place = data?.getSavedPlace;
+  if (!place) return null;
 
   // Find friend reviews
+  const friends = data?.getFriends || [];
   const friendIds = new Set(friends.map(f => f.id));
-  const friendReviews = place.reviews.filter(r => friendIds.has(r.userId));
+  const friendReviews = place.reviews ? place.reviews.filter(r => friendIds.has(r.userId)) : [];
 
   // Find the user's review
-  const myReview = place.reviews.find(r => r.userId === userId);
+  const myReview = place.reviews ? place.reviews.find(r => r.userId === userId) : null;
 
-  const handleReviewSubmit = async () => {
+  const handleReviewSubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+
+    if (form.checkValidity() === false) {
+      event.stopPropagation();
+      setValidated(true);
+      return;
+    }
+
     try {
       await createReview({
         variables: {
@@ -100,6 +66,8 @@ function PlaceDetail({ userId }) {
         }
       });
       setShowModal(false);
+      setReviewForm({ rating: 5, notes: '' });
+      setValidated(false);
       refetch();
     } catch (e) {
       alert("Error submitting review: " + e.message);
@@ -118,95 +86,84 @@ function PlaceDetail({ userId }) {
     }
   };
 
-//  Old, just in case
-//   return (
-//     <div className="container mt-5">
-//       <div className="card">
-//         <div className="card-body">
-//           <h1 className="card-title">{place.name}</h1>
-//           <h5 className="text-muted mb-3">{place.city}, {place.country}</h5>
-//           <p className="card-text">{place.description}</p>
-          
-//           {place.photos.length > 0 && (
-//             <div className="row">
-//               {place.photos.map((photo, index) => (
-//                 <div key={index} className="col-md-4 mb-3">
-//                   <img src={photo} alt={place.name} className="img-fluid rounded" />
-//                 </div>
-//               ))}
-//             </div>
-//           )}
-
-//           {place.reviews.length > 0 && (
-//             <div className="mt-4">
-//               <h4>Reviews</h4>
-//               {place.reviews.map((review) => (
-//                 <div key={review.id} className="card mb-2">
-//                   <div className="card-body">
-//                     <div className="d-flex justify-content-between">
-//                       <strong>Rating: {review.rating}/5</strong>
-//                       <small className="text-muted">{new Date(review.createdAt).toLocaleDateString()}</small>
-//                     </div>
-//                     <p className="mb-0 mt-2">{review.notes}</p>
-//                   </div>
-//                 </div>
-//               ))}
-//             </div>
-//           )}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
+  const getRatingColor = (rating) => {
+    if (rating >= 4.0) return 'success';
+    if (rating >= 2.5) return 'warning';
+    return 'danger';
+  };
 
 return (
-    <div className="place-detail-page">
-      <div className="place-card">
+    <Container className="place-detail-container">
+      <Card className="place-card">
         
         {/* header stuff */}
-        <div className="place-header">
-          <div className="header-content">
-            <div className="place-identity">
+        <Card.Header className="place-header">
+          <div className="place-header-content">
+            <div className="place-info">
               <h1 className="place-name">{place.name}</h1>
-              <p className="place-location">
+              <p className="place-address">
+                <i className="bi bi-geo-alt-fill"></i>
                 {place.address || `${place.city}, ${place.country}`}
               </p>
               {place.phoneNumber && (
-                <small className="place-phone">{place.phoneNumber}</small>
+                <p className="place-phone">
+                  <i className="bi bi-telephone-fill"></i>
+                  {place.phoneNumber}
+                </p>
               )}
             </div>
             
-            <div className="general-rating-container">
-                <span className="rating-badge">
-                    {place.rating ? `★ ${place.rating}` : 'No Rating'}
-                </span>
-                <div className="rating-label">General Rating</div>
+            <div className="place-rating-block">
+              <Badge bg={getRatingColor(place.rating)} className="rating-badge main-rating">
+                {place.rating ? `★ ${Number(place.rating).toFixed(1)}` : 'N/A'}
+              </Badge>
+              <div className="rating-label">General Rating</div>
             </div>
           </div>
           
           {/* tags*/}
-          {place.types && (
-             <div className="tags-container">
+          {place.types && place.types.length > 0 && (
+             <div className="place-tags">
                {place.types.map(t => (
-                 <span key={t} className="place-type-tag">
-                    {t.replace('_', ' ')}
-                 </span>
+                 <Badge key={t} bg="light" text="dark" className="tag-badge">
+                    {t.replace(/_/g, ' ')}
+                 </Badge>
                ))}
              </div>
           )}
-        </div>
+        </Card.Header>
 
-        <div className="place-body">
+        <Card.Body className="place-body">
+
+            {place.description && (
+                <div className="place-description-section">
+                    <p className="place-description">{place.description}</p>
+                </div>
+            )}
+
             {/* photos, probably have to change later */}
-            {place.photos.length > 0 && (
-                <div className="photos-gallery">
+            {place.photos && place.photos.length > 0 && (
+                <div className="photos-grid">
                   {place.photos.slice(0, 3).map((photo, index) => (
                       <div key={index} className="photo-wrapper">
-                        <img src={photo} alt={place.name} className="place-photo" />
+                          <img src={photo} alt={place.name} className="place-photo" />
                       </div>
                   ))}
                 </div>
             )}
+
+            {/* user actions */}
+            <div className="action-buttons">
+                {!myReview ? (
+                    <Button variant="primary" onClick={() => setShowModal(true)} className="btn-action">
+                        Write a Review
+                    </Button>
+                ) : (
+                    <Button variant="outline-danger" onClick={handleDeleteReview} className="btn-action">
+                        Delete My Review
+                    </Button>
+                )}
+            </div>
 
             <hr className="section-divider" />
 
@@ -214,84 +171,98 @@ return (
             <div className="friends-activity-section">
                 <h4 className="section-title">Friends' Activity</h4>
                 {friendReviews.length > 0 ? (
-                    friendReviews.map(r => (
-                        <div key={r.id} className="friend-review-card">
-                            <strong>Friend Rated: {r.rating}/5</strong> - "{r.notes}"
-                        </div>
-                    ))
+                    <div className="friends-list">
+                      {friendReviews.map(r => (
+                          <Alert key={r.id} variant="info" className="friend-review-alert">
+                              <div className="friend-review-header">
+                                <Badge bg="info" className="rating-badge small">★ {r.rating.toFixed(1)}</Badge>
+                                <span><strong>A friend</strong> rated this place.</span>
+                              </div>
+                              {r.notes && <p className="review-note">"{r.notes}"</p>}
+                          </Alert>
+                      ))}
+                    </div>
                 ) : (
-                    <p className="no-activity-message">No friend reivews. Be the first of your friends to rate this!</p>
-                )}
-            </div>
-
-            {/* user actions */}
-            <div className="action-buttons">
-                {!myReview ? (
-                    <Button variant="primary" onClick={() => setShowModal(true)} className="btn-add-review">
-                        Add Review
-                    </Button>
-                ) : (
-                    <Button variant="danger" onClick={handleDeleteReview} className="btn-delete-review">
-                        Delete My Review
-                    </Button>
+                    <p className="empty-state-text">No friends have reviewed this place yet.</p>
                 )}
             </div>
 
              {/* all reviews */}
              <div className="all-reviews-section">
-                <h5 className="section-title">All Reviews</h5>
+                <h4 className="section-title">All Reviews ({place.reviews?.length || 0})</h4>
                 {place.reviews && place.reviews.length > 0 ? (
-                   place.reviews.map(r => (
-                    <div key={r.id} className="public-review-item">
-                         <div className="review-header">
-                            <strong className="review-score">{r.rating}/5</strong>
-                            <small className="review-date">{new Date(r.createdAt).toLocaleDateString()}</small>
-                         </div>
-                         <p className="review-notes">{r.notes}</p>
-                    </div>
-                ))
-                ) : <p className="no-reviews-message">No reviews yet.</p>}
+                   <div className="reviews-list">
+                     {place.reviews.map(r => (
+                      <Card key={r.id} className="review-card">
+                        <Card.Body>
+                          <div className="review-header">
+                            <div className="review-rating-group">
+                              <Badge bg={getRatingColor(r.rating)} className="rating-badge small">
+                                ★ {Number(r.rating).toFixed(1)}
+                              </Badge>
+                              <span className="rating-text">Rating</span>
+                            </div>
+                            <small className="review-date">
+                              {new Date(r.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </small>
+                          </div>
+                          <Card.Text className="review-content">
+                            {r.notes || <em className="no-notes">No written review provided.</em>}
+                          </Card.Text>
+                        </Card.Body>
+                      </Card>
+                    ))}
+                   </div>
+                ) : (
+                  <Alert variant="light" className="empty-reviews-alert">
+                    No reviews yet. Be the first to share your experience!
+                  </Alert>
+                )}
             </div>
-        </div>
-      </div>
+        </Card.Body>
+      </Card>
 
       {/* review modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} className="review-modal">
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered className="review-modal">
         <Modal.Header closeButton>
           <Modal.Title>Rate {place.name}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Rating</Form.Label>
-              <Form.Select 
-                value={reviewForm.rating}
-                onChange={(e) => setReviewForm({...reviewForm, rating: e.target.value})}
-              >
-                <option value="5">5 - Excelent</option>
-                <option value="4">4 - Good</option>
-                <option value="3">3 - Alright</option>
-                <option value="2">2 - Bad</option>
-                <option value="1">1 - Terrible</option>
-              </Form.Select>
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Notes</Form.Label>
-              <Form.Control 
-                as="textarea" 
-                rows={3} 
-                value={reviewForm.notes}
-                onChange={(e) => setReviewForm({...reviewForm, notes: e.target.value})}
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
-          <Button variant="primary" onClick={handleReviewSubmit}>Submit Review</Button>
-        </Modal.Footer>
+        {/* FIX: Form has onSubmit, Button has type="submit" */}
+        <Form noValidate validated={validated} onSubmit={handleReviewSubmit}>
+          <Modal.Body>
+              <Form.Group className="form-group-rating">
+                <Form.Label>Rating</Form.Label>
+                {/* FIX: Integer dropdown instead of float input */}
+                <Form.Select 
+                  required
+                  value={reviewForm.rating}
+                  onChange={(e) => setReviewForm({...reviewForm, rating: e.target.value})}
+                >
+                  <option value="5">5 - Excellent</option>
+                  <option value="4">4 - Good</option>
+                  <option value="3">3 - Okay</option>
+                  <option value="2">2 - Bad</option>
+                  <option value="1">1 - Terrible</option>
+                </Form.Select>
+              </Form.Group>
+              <Form.Group className="form-group-notes">
+                <Form.Label>Notes <span className="optional-text">(Optional)</span></Form.Label>
+                <Form.Control 
+                  as="textarea" 
+                  rows={4} 
+                  placeholder="Share details of your own experience at this place."
+                  value={reviewForm.notes}
+                  onChange={(e) => setReviewForm({...reviewForm, notes: e.target.value})}
+                />
+              </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+            <Button type="submit" variant="primary">Submit Review</Button>
+          </Modal.Footer>
+        </Form>
       </Modal>
-    </div>
+    </Container>
   );
 }
 export default PlaceDetail;
