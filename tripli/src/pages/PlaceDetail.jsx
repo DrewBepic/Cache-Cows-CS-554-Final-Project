@@ -1,8 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, Button, Form, Container, Alert, Card, Badge } from 'react-bootstrap';
-import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW } from '../queries';
+import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW, GET_FRIENDS, GET_USER, ADD_SAVED_PLACE, REMOVE_SAVED_PLACE } from '../queries';
 import './PlaceDetail.css';
 
 function PlaceDetail({ userId }) {
@@ -12,6 +12,7 @@ function PlaceDetail({ userId }) {
   const [validated, setValidated] = useState(false);
   const [reviewImage, setReviewImage] = useState(null);
   const [uploadError, setUploadError] = useState(null);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   if (!userId) {
       return (
@@ -29,8 +30,41 @@ function PlaceDetail({ userId }) {
     variables: { placeId }
   });
 
+  const { data: friendsData } = useQuery(GET_FRIENDS, {
+      variables: { userId },
+      skip: !userId
+  });
+
+  const { data: userData, refetch: refetchUser } = useQuery(GET_USER, {
+      variables: { id: userId },
+      skip: !userId
+  });
+
   const [createReview] = useMutation(CREATE_REVIEW);
   const [deleteReview] = useMutation(DELETE_REVIEW);
+  const [addSavedPlace] = useMutation(ADD_SAVED_PLACE);
+  const [removeSavedPlace] = useMutation(REMOVE_SAVED_PLACE);
+
+  useEffect(() => {
+      if (userData?.getUser?.savedPlaces && placeId) {
+          setIsBookmarked(userData.getUser.savedPlaces.includes(placeId));
+      }
+  }, [userData, placeId]);
+
+  const handleBookmarkToggle = async () => {
+      try {
+          if (isBookmarked) {
+              await removeSavedPlace({ variables: { userId, placeId } });
+              setIsBookmarked(false);
+          } else {
+              await addSavedPlace({ variables: { userId, placeId } });
+              setIsBookmarked(true);
+          }
+          refetchUser(); // Refresh user list
+      } catch (e) {
+          alert("Failed to update bookmark: " + e.message);
+      }
+  };
 
   if (loading) return <div className="container mt-5"><p>Loading...</p></div>;
   if (error) return <div className="container mt-5"><p>Error loading place</p></div>;
@@ -51,7 +85,7 @@ function PlaceDetail({ userId }) {
   }
 
   // Find friend reviews
-  const friends = data?.getFriends || [];
+  const friends = friendsData?.getFriends || [];
   const friendIds = new Set(friends.map(f => f.id));
   const friendReviews = place.reviews ? place.reviews.filter(r => friendIds.has(r.userId)) : [];
 
@@ -145,7 +179,20 @@ return (
                 </p>
               )}
             </div>
-            
+
+            {/* bookmark button */}
+            <Button 
+              variant={isBookmarked ? "success" : "outline-secondary"} 
+              onClick={handleBookmarkToggle}
+              className="ms-3"
+            >
+              {isBookmarked ? (
+                  <><i className="bi bi-bookmark-fill me-2"></i>Bookmarked</>
+              ) : (
+                  <><i className="bi bi-bookmark me-2"></i>Bookmark</>
+              )}
+            </Button>
+
             {/* ratings, showing google and overall users */}
             <div className="d-flex gap-4">
               <div className="place-rating-block">
@@ -240,14 +287,16 @@ return (
                       <Card key={r.id} className="review-card">
                         <Card.Body>
                           <div className="review-header">
-                            <div className="review-rating-group">
-                              <Badge bg={getRatingColor(r.rating)} className="rating-badge small">
-                                ★ {Number(r.rating).toFixed(1)}
-                              </Badge>
-                              <span className="rating-text">Rating</span>
+                            <div className="d-flex align-items-center gap-2">
+                                <Badge bg={getRatingColor(r.rating)} className="rating-badge small">
+                                    ★ {Number(r.rating).toFixed(1)}
+                                </Badge>
+                                <span className="fw-bold">
+                                    {r.username || "User"} {/* Shows Username now */}
+                                </span>
                             </div>
                             <small className="review-date">
-                              {new Date(r.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                {new Date(r.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                             </small>
                           </div>
                           <Card.Text className="review-content">

@@ -7,6 +7,7 @@ export const GET_USER = gql`
       username
       firstName
       lastName
+      savedPlaces
     }
   }
 `;
@@ -138,14 +139,15 @@ export const REMOVE_FRIEND = gql`
 `;
 
 export const CREATE_REVIEW = gql`
-  mutation CreateReview($userId: ID!, $placeId: String!, $placeName: String!, $rating: Int!, $notes: String) {
-    createReview(userId: $userId, placeId: $placeId, placeName: $placeName, rating: $rating, notes: $notes) {
+  mutation CreateReview($userId: ID!, $placeId: String!, $placeName: String!, $rating: Int!, $notes: String, $photos: [String]) {
+    createReview(userId: $userId, placeId: $placeId, placeName: $placeName, rating: $rating, notes: $notes, photos: $photos) {
       id
       placeId
       placeName
       rating
       notes
       createdAt
+      photos
     }
   }
 `;
@@ -178,14 +180,17 @@ export const GET_SAVED_PLACE = gql`
       country
       phoneNumber
       rating
+      tripliRating
       types
       photos
       description
       reviews {
         id
         userId
+        username
         rating
         notes
+        photos
         createdAt
       }
     }

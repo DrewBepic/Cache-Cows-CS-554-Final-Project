@@ -448,5 +448,16 @@ export const resolvers = {
             const total = reviewDocs.reduce((acc, curr) => acc + curr.rating, 0);
             return (total / reviewDocs.length).toFixed(1);
         }
-    }
+    },
+    Review: {
+        username: async (parent) => {
+            if (parent.username) return parent.username;
+            try {
+                const user = await userFunctions.findUserById(parent.userId);
+                return user ? user.username : "Unknown User";
+            } catch (e) {
+                return "Unknown User";
+            }
+        }
+    },
 };
