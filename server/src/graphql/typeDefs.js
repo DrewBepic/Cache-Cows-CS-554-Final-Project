@@ -64,6 +64,16 @@ export const typeDefs = `#graphql
         description: String
     }
 
+    type TopRatedSpot {
+        placeId: String!
+        placeName: String!
+        averageRating: Float!
+        reviewCount: Int!
+        country: String
+        city: String
+    }
+
+
     type Query {
         getUser(id: ID!): User
         getUserByUsername(username: String!): User
@@ -83,6 +93,9 @@ export const typeDefs = `#graphql
         autocompleteSavedPlaces(prefix: String!): [String!]!
         searchNearbyPlaces(lat: Float!, lng: Float!, type: String!): [NearbyPlace!]!
         searchCities(query: String!): [City!]!
+        
+        getGlobalTopRatedSpots(limit: Int, country: String, city: String): [TopRatedSpot!]!
+        getUserAndFriendsTopRatedSpots(userId: ID!, limit: Int, country: String, city: String): [TopRatedSpot!]!
     }
 
     type Mutation {

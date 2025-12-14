@@ -52,7 +52,7 @@ export const acceptFriendRequest = async (currentUserId, friendId) => {
         throw new Error("User not found");
     }
     //check if request acc exists
-    const hasRequest = currentUser.received_friend_requests.some(id => id.toString() === friendId);
+    const hasRequest = currentUser.received_friend_requests.some(id => id.toString() === friendId.toString());
     if (!hasRequest) {
         throw new Error("No friend request from this user");
     }
@@ -83,7 +83,7 @@ export const rejectFriendRequest = async (currentUserId, friendId) => {
         throw new Error("User not found");
     }
     //check if request acc exists
-    const hasRequest = currentUser.received_friend_requests.some(id => id.toString() === friendId);
+    const hasRequest = currentUser.received_friend_requests.some(id => id.toString() === friendId.toString());
     if (!hasRequest) {
         throw new Error("No friend request from this user");
     }
@@ -107,7 +107,7 @@ export const removeFriend = async (currentUserId, friendId) => {
         throw new Error("User not found");
     }
     //check if they are actually friends
-    const areFriends = currentUser.friends.some(id => id.toString() === friendId);
+    const areFriends = currentUser.friends.some(id => id.toString() === friendId.toString());
     if (!areFriends) {
         throw new Error("Users are not friends");
     }

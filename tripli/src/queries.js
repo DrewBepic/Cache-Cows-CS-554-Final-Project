@@ -209,3 +209,34 @@ export const SEARCH_CITIES = gql`
     }
   }
 `;
+
+export const GET_GLOBAL_TOP_SPOTS = gql`
+  query GetGlobalTopRatedSpots($limit: Int, $city: String, $country: String) {
+    getGlobalTopRatedSpots(limit: $limit, city: $city, country: $country) {
+      placeId
+      placeName
+      averageRating
+      reviewCount
+      city
+      country
+    }
+  }
+`;
+
+export const GET_FRIENDS_TOP_SPOTS = gql`
+  query GetFriendsTopRatedSpots($userId: ID!, $limit: Int,  $city: String, $country: String) {
+    getUserAndFriendsTopRatedSpots(
+      userId: $userId
+      limit: $limit
+      city: $city
+      country: $country
+    ) {
+      placeId
+      placeName
+      averageRating
+      reviewCount
+      city
+      country
+    }
+  }
+`;
