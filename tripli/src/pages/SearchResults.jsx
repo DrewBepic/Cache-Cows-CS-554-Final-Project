@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { useQuery } from '@apollo/client';
-import { SEARCH_CITIES } from '../queries';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client';
+import { SEARCH_CITIES, IMPORT_GOOGLE_PLACE } from '../queries';
 import axios from 'axios';
+import { Button, Card, Spinner, Alert, Badge } from 'react-bootstrap';
+import './SearchResults.css';
 
 const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -21,23 +23,38 @@ const ENTERTAINMENT_TYPES = [
 
 export default function SearchResults() {
     const [params] = useSearchParams();
+    const navigate = useNavigate();
     const query = (params.get('query') || '').trim();
     const isValid = query.length >= 1;
 
     const [selectedCity, setSelectedCity] = useState(null);
     const [entertainmentType, setEntertainmentType] = useState('');
     const [places, setPlaces] = useState([]);
+    const [loadingPlaces, setLoadingPlaces] = useState(false);
+    const [searchError, setSearchError] = useState(null);
 
     const { data, loading, error } = useQuery(SEARCH_CITIES, {
         variables: { query },
         skip: !isValid,
     });
 
+    const [importPlace] = useMutation(IMPORT_GOOGLE_PLACE);
     const cities = data?.searchCities || [];
 
     const handleCityClick = (city) => {
         setSelectedCity(city);
         setEntertainmentType('');
+        setPlaces([]);
+        setSearchError(null);
+    };
+
+    // Rating flair
+    const getRatingVariant = (rating) => {
+        if (!rating) return 'secondary';
+        if (rating >= 4.5) return 'success';
+        if (rating >= 3.5) return 'primary';
+        if (rating >= 2.5) return 'warning';
+        return 'danger';
     };
 
     // const handleSearch = () => {
@@ -54,6 +71,8 @@ export default function SearchResults() {
 
     const handleSearch = async () => {
         if (selectedCity && entertainmentType) {
+            setLoadingPlaces(true);
+            setSearchError(null);
             try {
                 // Call your backend route instead of Google Maps directly
                 const response = await axios.get('http://localhost:4000/api/maps/places', {
@@ -74,13 +93,31 @@ export default function SearchResults() {
             } catch (err) {
                 console.error('Error fetching places:', err);
                 alert('Failed to fetch entertainment places');
+            } finally {
+                setLoadingPlaces(false);
             }
         } else {
             alert('Please select a city and entertainment type.');
         }
     };
 
+    // Click logic for listed places
+    const handlePlaceClick = async (place) => {
+        try {
+            // Import the place to our DB (or get existing ID)
+            const result = await importPlace({ 
+                variables: { googlePlaceId: place.place_id } 
+            });
+            
+            // Get the internal MongoDB ID
+            const internalId = result.data.importGooglePlace.id;
 
+            // Navigate to the Details Page for that place
+            navigate(`/place/${internalId}`);
+        } catch (e) {
+            alert("Failed to load place details: " + e.message);
+        }
+    };
 
     return (
         <div className="search-results">
@@ -134,13 +171,32 @@ export default function SearchResults() {
                 </div>
             )}
             {selectedCity && entertainmentType && places.length > 0 && (
-                <ul className="places-list">
-                    {places.map((place, index) => (
-                        <li key={index}>
-                            <strong>{place.name}</strong> - {place.vicinity}
-                        </li>
+                <div className="results-grid">
+                    {places.map((place) => (
+                        <Card 
+                            key={place.place_id} 
+                            className="place-result-card"
+                            onClick={() => handlePlaceClick(place)}
+                        >
+                            <Card.Body className="place-card-body">
+                                <div className="place-title">{place.name}</div>
+                                <div className="place-address">
+                                    <i className="bi bi-geo-alt-fill me-1"></i>
+                                    {place.vicinity}
+                                </div>
+                                
+                                <div className="place-footer">
+                                    <Badge bg={getRatingVariant(place.rating)} className="rating-badge">
+                                        {place.rating ? `★ ${place.rating}` : 'N/A'}
+                                    </Badge>
+                                    <span className="view-details-link">
+                                        View Details &rarr;
+                                    </span>
+                                </div>
+                            </Card.Body>
+                        </Card>
                     ))}
-                </ul>
+                </div>
             )}
 
 

@@ -1,6 +1,6 @@
 import { reviews, users } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
-export const createReview = async (userId, placeId, placeName, rating, notes) => {
+export const createReview = async (userId, placeId, placeName, rating, notes, photos = []) => {
     if (rating < 1 || rating > 5) {
         throw new Error("Rating must be between 1 and 5");
     }
@@ -10,6 +10,7 @@ export const createReview = async (userId, placeId, placeName, rating, notes) =>
         place_name: placeName,
         rating: rating,
         notes: notes || '',
+        photos: photos,
         createdAt: new Date()
     };
     const reviewsCollection = await reviews();

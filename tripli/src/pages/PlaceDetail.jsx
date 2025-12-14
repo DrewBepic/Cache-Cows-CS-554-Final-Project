@@ -3,13 +3,15 @@ import { useQuery, useMutation } from '@apollo/client';
 import { useState } from 'react';
 import { Modal, Button, Form, Container, Alert, Card, Badge } from 'react-bootstrap';
 import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW } from '../queries';
-import '../PlaceDetail.css';
+import './PlaceDetail.css';
 
 function PlaceDetail({ userId }) {
   const { placeId } = useParams();
   const [showModal, setShowModal] = useState(false);
   const [reviewForm, setReviewForm] = useState({ rating: 5, notes: '' });
   const [validated, setValidated] = useState(false);
+  const [reviewImage, setReviewImage] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
 
   if (!userId) {
       return (
@@ -35,7 +37,18 @@ function PlaceDetail({ userId }) {
   if (!data) return null;
 
   const place = data?.getSavedPlace;
-  if (!place) return null;
+  if (!place) {
+    return (
+      <Container className="place-detail-container">
+        <Alert variant="warning" className="not-found-alert">
+          <Alert.Heading>Place Not Found</Alert.Heading>
+          <p>We couldn't find a place with ID: <strong>{placeId}</strong></p>
+          <p>It might be saved in the cache but not the directory yet.</p>
+          <Link to="/search" className="btn btn-primary">Return to Search</Link>
+        </Alert>
+      </Container>
+    );
+  }
 
   // Find friend reviews
   const friends = data?.getFriends || [];
@@ -44,6 +57,25 @@ function PlaceDetail({ userId }) {
 
   // Find the user's review
   const myReview = place.reviews ? place.reviews.find(r => r.userId === userId) : null;
+
+  
+    // convert file to base64
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5000000) { // Limit to 5MB
+        setUploadError("File is too large (Max 5MB)");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        setReviewImage(reader.result); // Base64 string
+        setUploadError(null);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleReviewSubmit = async (event) => {
     event.preventDefault();
@@ -62,7 +94,8 @@ function PlaceDetail({ userId }) {
           placeId: place.id, 
           placeName: place.name,
           rating: parseInt(reviewForm.rating),
-          notes: reviewForm.notes
+          notes: reviewForm.notes,
+          photos: reviewImage ? [reviewImage] : []
         }
       });
       setShowModal(false);
@@ -96,7 +129,7 @@ return (
     <Container className="place-detail-container">
       <Card className="place-card">
         
-        {/* header stuff */}
+        {/* header area */}
         <Card.Header className="place-header">
           <div className="place-header-content">
             <div className="place-info">
@@ -113,15 +146,25 @@ return (
               )}
             </div>
             
-            <div className="place-rating-block">
-              <Badge bg={getRatingColor(place.rating)} className="rating-badge main-rating">
-                {place.rating ? `★ ${Number(place.rating).toFixed(1)}` : 'N/A'}
-              </Badge>
-              <div className="rating-label">General Rating</div>
+            {/* ratings, showing google and overall users */}
+            <div className="d-flex gap-4">
+              <div className="place-rating-block">
+                <Badge bg={getRatingColor(place.rating)} className="rating-badge main-rating">
+                    {place.rating ? `★ ${Number(place.rating).toFixed(1)}` : 'N/A'}
+                </Badge>
+                <div className="rating-label">Google Rating</div>
+              </div>
+
+              <div className="place-rating-block">
+                <Badge bg="primary" className="rating-badge main-rating">
+                    {place.tripliRating > 0 ? `★ ${place.tripliRating}` : 'N/A'}
+                </Badge>
+                <div className="rating-label">Tripli Rating</div>
+              </div>
             </div>
           </div>
           
-          {/* tags*/}
+          {/* tags */}
           {place.types && place.types.length > 0 && (
              <div className="place-tags">
                {place.types.map(t => (
@@ -133,6 +176,7 @@ return (
           )}
         </Card.Header>
 
+        {/* body */}
         <Card.Body className="place-body">
 
             {place.description && (
@@ -141,7 +185,7 @@ return (
                 </div>
             )}
 
-            {/* photos, probably have to change later */}
+            {/* photos from the API */}
             {place.photos && place.photos.length > 0 && (
                 <div className="photos-grid">
                   {place.photos.slice(0, 3).map((photo, index) => (
@@ -167,7 +211,7 @@ return (
 
             <hr className="section-divider" />
 
-            {/* friend ratings sections */}
+            {/* friend reviews */}
             <div className="friends-activity-section">
                 <h4 className="section-title">Friends' Activity</h4>
                 {friendReviews.length > 0 ? (
@@ -208,6 +252,17 @@ return (
                           </div>
                           <Card.Text className="review-content">
                             {r.notes || <em className="no-notes">No written review provided.</em>}
+                            
+                            {/* photo in a user's review */}
+                            {r.photos && r.photos.length > 0 && (
+                                <div className="mt-3">
+                                    <img 
+                                        src={r.photos[0]} 
+                                        alt="Review attachment" 
+                                        style={{ maxWidth: '200px', borderRadius: '8px', border: '1px solid #ddd' }}
+                                    />
+                                </div>
+                            )}
                           </Card.Text>
                         </Card.Body>
                       </Card>
@@ -227,12 +282,10 @@ return (
         <Modal.Header closeButton>
           <Modal.Title>Rate {place.name}</Modal.Title>
         </Modal.Header>
-        {/* FIX: Form has onSubmit, Button has type="submit" */}
         <Form noValidate validated={validated} onSubmit={handleReviewSubmit}>
           <Modal.Body>
               <Form.Group className="form-group-rating">
                 <Form.Label>Rating</Form.Label>
-                {/* FIX: Integer dropdown instead of float input */}
                 <Form.Select 
                   required
                   value={reviewForm.rating}
@@ -245,6 +298,7 @@ return (
                   <option value="1">1 - Terrible</option>
                 </Form.Select>
               </Form.Group>
+              
               <Form.Group className="form-group-notes">
                 <Form.Label>Notes <span className="optional-text">(Optional)</span></Form.Label>
                 <Form.Control 
@@ -255,6 +309,24 @@ return (
                   onChange={(e) => setReviewForm({...reviewForm, notes: e.target.value})}
                 />
               </Form.Group>
+              
+              {/* image upload field */}
+              <Form.Group className="mb-3">
+               <Form.Label>Attach a Photo</Form.Label>
+               <Form.Control 
+                   type="file" 
+                   accept="image/*"
+                   onChange={handleImageChange}
+               />
+               {uploadError && <div className="text-danger small mt-1">{uploadError}</div>}
+               {reviewImage && (
+                   <div className="mt-2">
+                       <small>Preview:</small><br/>
+                       <img src={reviewImage} alt="Preview" style={{ height: '80px', borderRadius: '4px' }} />
+                   </div>
+               )}
+            </Form.Group>
+
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>

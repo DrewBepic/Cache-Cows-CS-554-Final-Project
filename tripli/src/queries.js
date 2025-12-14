@@ -233,3 +233,12 @@ export const SEARCH_CITIES = gql`
     }
   }
 `;
+
+export const IMPORT_GOOGLE_PLACE = gql`
+  mutation ImportGooglePlace($googlePlaceId: String!) {
+    importGooglePlace(googlePlaceId: $googlePlaceId) {
+      id 
+      name
+    }
+  }
+`;
