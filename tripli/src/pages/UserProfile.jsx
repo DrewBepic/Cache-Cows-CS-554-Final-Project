@@ -75,7 +75,7 @@ function UserProfile() {
     // Format date function
     const formatDate = (dateString) => {
         if (!dateString) return 'Unknown date';
-        const date = new Date(parseInt(dateString));
+        const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
