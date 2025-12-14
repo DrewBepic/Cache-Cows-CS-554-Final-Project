@@ -12,6 +12,7 @@ import Feed from './pages/Feed';
 import PlaceDetail from './pages/PlaceDetail';
 import Search from './pages/Search';
 import SearchResults from './pages/SearchResults';
+import Leaderboard from './pages/LeaderBoard';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
@@ -63,6 +64,7 @@ function App() {
           />
           <Route path="/feed" element={<Feed />} />
           <Route path="/friends" element={<Friends />} />
+          <Route path="/leaderboard" element={<Leaderboard currentUserId={currentUserId} />} />
           <Route path="/profile/:userId" element={<UserProfile />} />
           <Route path="/place/:placeId" element={<PlaceDetail userId={currentUserId}/>} /> 
           <Route path="/search" element={<Search />} />
