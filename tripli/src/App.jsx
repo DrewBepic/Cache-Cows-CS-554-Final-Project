@@ -1,5 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import './App.css';
 import Navigation from './components/Navigation';
@@ -10,11 +10,33 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Feed from './pages/Feed';
 import PlaceDetail from './pages/PlaceDetail';
+import Search from './pages/Search';
+import SearchResults from './pages/SearchResults';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    const savedUserId = localStorage.getItem('currentUserId');
+    const savedIsLoggedIn = localStorage.getItem('isLoggedIn');
+    
+    if (savedIsLoggedIn === 'true' && savedUserId) {
+      setIsLoggedIn(true);
+      setCurrentUserId(savedUserId);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoggedIn && currentUserId) {
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('currentUserId', currentUserId);
+    } else {
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('currentUserId');
+    }
+  }, [isLoggedIn, currentUserId]);
 
   return (
     <div>
@@ -44,6 +66,8 @@ function App() {
           <Route path="/profile/:userId" element={<UserProfile />} />
           {/* Temporaily, not sure yet if we should require users to be logged in to view places */}
           <Route path="/place/:placeId" element={<PlaceDetail setCurrentUserId={setCurrentUserId}/>} /> 
+          <Route path="/search" element={<Search />} />
+          <Route path="/search/results" element={<SearchResults />} />
         </Routes>
       </div>
     </div>

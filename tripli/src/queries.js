@@ -198,3 +198,14 @@ mutation Logout {
     }
 }
 `;
+
+export const SEARCH_CITIES = gql`
+  query SearchCities($query: String!) {
+    searchCities(query: $query) {
+      name
+      country
+      lat
+      lng
+    }
+  }
+`;

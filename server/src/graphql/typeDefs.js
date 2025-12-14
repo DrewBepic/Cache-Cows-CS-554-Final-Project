@@ -32,6 +32,13 @@ export const typeDefs = `#graphql
         lng: Float
     }
 
+    type City {
+        name: String!
+        country: String!
+        lat: Float!
+        lng: Float!
+    }
+
     type SavedPlace {
         id: ID!
         name: String!
@@ -45,6 +52,17 @@ export const typeDefs = `#graphql
         types: [String!]
         reviews: [Review!]!
 }
+
+    type NearbyPlace {
+        placeId: String!
+        name: String!
+        address: String
+        rating: Float
+        types: [String!]
+        photos: [String!]
+        phoneNumber: String
+        description: String
+    }
 
     type Query {
         getUser(id: ID!): User
@@ -63,6 +81,8 @@ export const typeDefs = `#graphql
         getUserSavedPlaces(userId: ID!): [SavedPlace!]! 
         searchSavedPlaces(query: String!, userId: ID): [SavedPlace!]!
         autocompleteSavedPlaces(prefix: String!): [String!]!
+        searchNearbyPlaces(lat: Float!, lng: Float!, type: String!): [NearbyPlace!]!
+        searchCities(query: String!): [City!]!
     }
 
     type Mutation {
