@@ -111,7 +111,8 @@ export const resolvers = {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
-            return await userFunctions.getSavedPlaces(userId);
+            const places = await userFunctions.getSavedPlaces(userId);
+            return (places || []).map(p => p.toString());
         },
         searchCities: async (_, { query }) => {
             const trimmed = query?.trim().toLowerCase();
