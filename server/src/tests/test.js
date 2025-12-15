@@ -5,10 +5,6 @@ import { createSavedPlace } from '../db_functions/saved_places.js';
 import { users, reviews, saved_places } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
 
-/* =====================================================
-   🧱 SEED DATA (EDIT HERE ONLY)
-===================================================== */
-
 const USERS = {
     alice: {
         username: 'alice_wonder',
@@ -138,53 +134,47 @@ const FRIENDSHIPS = [
     { from: 'alice', to: 'charlie', accept: false }
 ];
 
+// Reviews now reference saved_place keys, not Google place_ids
 const REVIEWS = [
     {
         user: 'alice',
-        placeId: 'ChIJRsMymJ36wokRJcPv6-ayzo',
-        placeName: 'iFLY Indoor Skydiving - Paramus',
+        savedPlaceKey: 'ifly_paramus',  // Reference to savedPlaceMap key
         rating: 5,
         comment: 'Super fun experience! Staff was professional and friendly.'
     },
     {
         user: 'alice',
-        placeId: 'ChIJLU7jZClu5kcR4PcOOO6p3I0',
-        placeName: 'Eiffel Tower',
+        savedPlaceKey: 'eiffel_tower',
         rating: 5,
         comment: 'Absolutely breathtaking! A must-see in Paris.'
     },
     {
         user: 'bob',
-        placeId: 'ChIJLU7jZClu5kcR4PcOOO6p3I0',
-        placeName: 'Eiffel Tower',
+        savedPlaceKey: 'eiffel_tower',
         rating: 4,
         comment: 'Beautiful but very crowded. Go early in the morning!'
     },
     {
         user: 'bob',
-        placeId: 'ChIJPTacEpBQwokRKwIlDbbTnLU',
-        placeName: 'Statue of Liberty',
+        savedPlaceKey: 'statue_of_liberty',
         rating: 5,
         comment: 'Iconic American landmark. The ferry ride is worth it!'
     },
     {
         user: 'charlie',
-        placeId: 'ChIJPTacEpBQwokRKwIlDbbTnLU',
-        placeName: 'Statue of Liberty',
+        savedPlaceKey: 'statue_of_liberty',
         rating: 3,
         comment: 'Nice to see once, but tickets are expensive.'
     },
     {
         user: 'charlie',
-        placeId: 'ChIJCewJkL2LGGAR3Qmk0vCTGkg',
-        placeName: 'Tokyo Tower',
+        savedPlaceKey: 'tokyo_tower',
         rating: 4,
         comment: 'Great views of Tokyo! Better than I expected.'
     },
     {
         user: 'alice',
-        placeId: 'ChIJCewJkL2LGGAR3Qmk0vCTGkg',
-        placeName: 'Tokyo Tower',
+        savedPlaceKey: 'tokyo_tower',
         rating: 5,
         comment: 'Amazing at night with all the lights!'
     }
@@ -228,28 +218,18 @@ const populateData = async () => {
         /* ---------- FRIENDSHIPS ---------- */
         console.log('\n🤝 Creating friendships...');
         for (const f of FRIENDSHIPS) {
-            console.log(`\n--- Processing: ${f.from} → ${f.to} ---`);
-            console.log(`From user ID: ${userMap[f.from]._id}`);
-            console.log(`To user ID: ${userMap[f.to]._id}`);
-            
             // Send friend request from 'from' user to 'to' user
-            const sentResult = await sendFriendRequest(
+            await sendFriendRequest(
                 userMap[f.from]._id.toString(),
                 userMap[f.to].username
             );
             console.log(`📤 ${f.from} sent friend request to ${f.to}`);
-            console.log(`Sent requests array:`, sentResult.sent_friend_requests);
 
             // ⛔ IMPORTANT: allow Mongo write to flush
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Let's verify the request was received
-            const usersCollection = await users();
-            const receiverUser = await usersCollection.findOne({ _id: userMap[f.to]._id });
-            console.log(`${f.to}'s received requests:`, receiverUser.received_friend_requests);
-
             if (f.accept) {
-                // FIXED: 'to' user accepts request FROM 'from' user
+                // 'to' user accepts request FROM 'from' user
                 await acceptFriendRequest(
                     userMap[f.to]._id.toString(),   // currentUserId (receiver accepting)
                     userMap[f.from]._id.toString()  // friendId (sender of request)
@@ -259,7 +239,6 @@ const populateData = async () => {
                 console.log(`⏸️  ${f.from} → ${f.to} request pending (not accepted)`);
             }
         }
-
 
         /* ---------- SAVED PLACES ---------- */
         console.log('\n📍 Creating saved places...');
@@ -272,21 +251,35 @@ const populateData = async () => {
             );
             savedPlaceMap[key] = place;
             console.log(`✅ SavedPlace created: ${place.name}`);
+            console.log(`   MongoDB _id: ${place._id}`);
+            console.log(`   Google place_id: ${place.place_id}`);
         }
-
-        // Note: createSavedPlace already adds places to user's saved_places array
 
         /* ---------- REVIEWS ---------- */
         console.log('\n⭐ Creating reviews...');
         for (const r of REVIEWS) {
+            const savedPlace = savedPlaceMap[r.savedPlaceKey];
+            
+            // Create review with saved_place's MongoDB _id
             await createReview(
-                userMap[r.user]._id.toString(),  // Convert ObjectId to string
-                r.placeId,
-                r.placeName,
+                userMap[r.user]._id.toString(),  // User ID
+                savedPlace._id.toString(),        // Saved place MongoDB _id (NOT Google place_id!)
+                savedPlace.name,                  // Place name
                 r.rating,
                 r.comment
             );
-            console.log(`✅ ${r.user} reviewed ${r.placeName}`);
+            console.log(`✅ ${r.user} reviewed ${savedPlace.name}`);
+        }
+
+        /* ---------- INDEX CITIES IN ELASTICSEARCH ---------- */
+        console.log('\n🔍 Indexing cities in Elasticsearch...');
+        try {
+            const setupCityIndex = (await import('../scripts/setupCityIndex.js')).default;
+            await setupCityIndex();
+            console.log('✅ Cities indexed in Elasticsearch');
+        } catch (error) {
+            console.error('❌ Failed to index cities:', error.message);
+            console.log('⚠️  Make sure Elasticsearch is running');
         }
 
         console.log('\n🎉 Database seeded successfully!');
@@ -300,19 +293,24 @@ const populateData = async () => {
         console.log('\n📍 Saved Places:');
         for (const key of Object.keys(savedPlaceMap)) {
             console.log(`  - ${savedPlaceMap[key].name} (${savedPlaceMap[key].city}, ${savedPlaceMap[key].country})`);
+            console.log(`    MongoDB _id: ${savedPlaceMap[key]._id}`);
             console.log(`    Google place_id: ${savedPlaceMap[key].place_id}`);
         }
         
         console.log('\n⭐ Review Distribution:');
         const reviewCounts = {};
         REVIEWS.forEach(r => {
-            reviewCounts[r.placeName] = (reviewCounts[r.placeName] || 0) + 1;
+            const placeName = savedPlaceMap[r.savedPlaceKey].name;
+            reviewCounts[placeName] = (reviewCounts[placeName] || 0) + 1;
         });
         for (const [place, count] of Object.entries(reviewCounts)) {
             console.log(`  - ${place}: ${count} reviews`);
         }
+        
+        process.exit(0);
     } catch (err) {
         console.error('❌ Seeding failed:', err);
+        process.exit(1);
     }
 };
 
