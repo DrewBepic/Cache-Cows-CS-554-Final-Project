@@ -55,7 +55,7 @@ const convertSavedPlace = (place) => {
         description: place.description || 'No description given.',
         city: place.city || '',
         country: place.country || '',
-        address: place['Address (approximately)'] || place.address,
+        address: place.address || '',
         rating: place.rating,
         phoneNumber: place.phone_number || '',
         types: place.types || [],
@@ -143,18 +143,17 @@ export const resolvers = {
             return places.map(convertSavedPlace);
         }, 
         getSavedPlace: async (_, { placeId }) => {
-            if (!isValidObjectId(placeId)) {
-                return null;
-            }
+            if (!isValidObjectId(placeId)) return null;
+
+            const cacheKey = `place:${placeId}`;
+            const cachedData = await getFromCache(cacheKey);
+            if (cachedData) return cachedData;
 
             const place = await placeFunctions.getPlaceById(placeId);
             if (!place) return null;
 
-
             const reviewsCol = await reviewsCollection();
-            const placeReviews = await reviewsCol.find({
-                place_id: placeId // This is the MongoDB ID string
-            }).toArray();
+            const placeReviews = await reviewsCol.find({ place_id: placeId }).toArray();
 
             let tripliRating = 0;
             if (placeReviews.length > 0) {
@@ -173,11 +172,14 @@ export const resolvers = {
                 })
             );
 
-            return {
+            const result = {
                 ...convertSavedPlace(place),
                 tripliRating: parseFloat(tripliRating.toFixed(1)),
                 reviews: reviewsWithUsernames
             };
+
+            await setCache(cacheKey, result, 3600); // cache for 1 hour
+            return result;
         },
         searchCities: async (_, { query }) => {
             if (!query || query.trim() === '') return [];
@@ -374,6 +376,7 @@ export const resolvers = {
                 await placeFunctions.addReviewToPlace(placeId, review._id.toString());
                 if(review){
                     await deletekeywithPattern('topspots:*'); // Invalidate relevant cache
+                    await client.del(`place:${placeId}`);
                 }
                 return convertReview(review);
             }
