@@ -1,4 +1,4 @@
-import { reviews as reviewsCollection, saved_places } from '../db_config/mongoCollections.js';
+import { reviews as reviewsCollection, places } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
 import * as friendFunctions from './friends.js';
 import * as userFunctions from './users.js';
@@ -6,7 +6,7 @@ import * as userFunctions from './users.js';
 // Get global top rated spots
 export const getGlobalTopRatedSpots = async (limit = 10, country, city) => {
     const reviewsCol = await reviewsCollection();
-    const savedPlacesCol = await saved_places();
+    const placesCol = await places();
     // add aggregation pipeline to calculate average ratings and review counts
     const pipeline = [
         {
@@ -23,8 +23,8 @@ export const getGlobalTopRatedSpots = async (limit = 10, country, city) => {
     //get aggregated reviews to array
     const aggregatedReviews = await reviewsCol.aggregate(pipeline).toArray();
     const placeObjectIds = aggregatedReviews.map(spot => new ObjectId(spot._id));
-    // Fetch place details from saved_places collection so that we get city and country info
-    const placesData = await savedPlacesCol.find(
+    // Fetch place details from places collection so that we get city and country info
+    const placesData = await placesCol.find(
         { _id: { $in: placeObjectIds } },
         { projection: { _id: 1, city: 1, country: 1, address: 1, photos: 1, types: 1 } }
     ).toArray();
@@ -82,7 +82,7 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 10, country
     const allUserIds = friendIds;
 
     const reviewsCol = await reviewsCollection();
-    const savedPlacesCol = await saved_places();
+    const placesCol = await places();
     // Aggregation pipeline to calculate average ratings and review counts for user and friends
     const pipeline = [
         { $match: { user_id: { $in: allUserIds } } },
@@ -100,8 +100,8 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 10, country
     // Get aggregated reviews to array
     const aggregatedReviews = await reviewsCol.aggregate(pipeline).toArray();
     const placeObjectIds = aggregatedReviews.map(spot => new ObjectId(spot._id));
-    // Fetch place details from saved_places collection to get city and country info
-    const placesData = await savedPlacesCol.find(
+    // Fetch place details from places collection to get city and country info
+    const placesData = await placesCol.find(
         { _id: { $in: placeObjectIds } },
         { projection: { _id: 1, city: 1, country: 1 } }
     ).toArray();
