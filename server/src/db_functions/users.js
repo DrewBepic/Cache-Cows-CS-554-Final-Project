@@ -1,4 +1,4 @@
-import { users } from "../db_config/mongoCollections.js";
+import { users, saved_places } from "../db_config/mongoCollections.js";
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
 export const createUser = async (userData) => {
@@ -59,5 +59,13 @@ export const removeSavedPlace = async (userId, placeId) => {
 };
 export const getSavedPlaces = async (userId) => {
     const user = await findUserById(userId);
-    return user?.saved_places.map(place => place.toString()) || [];
+    const savedPlaceCollection = await saved_places();
+    const saved_places_ids = user?.saved_places;
+    if (!saved_places_ids) {return [];}
+    //now i gots to find their location in the saved_places collection
+    const objectIds = saved_places_ids.map(id => new ObjectId(id));
+    const savedPlaces = await savedPlaceCollection.find({
+        _id: { $in: objectIds }
+    });
+    return savedPlaces?.toArray() || [];
 };

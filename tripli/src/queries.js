@@ -88,7 +88,13 @@ export const GET_USER_REVIEWS = gql`
 
 export const GET_SAVED_PLACES = gql`
   query GetSavedPlaces($userId: ID!) {
-    getSavedPlaces(userId: $userId)
+    getSavedPlaces(userId: $userId) {
+      id
+      name
+      description
+      city
+      country
+    }
   }
 `;
 

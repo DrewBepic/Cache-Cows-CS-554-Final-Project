@@ -1,10 +1,5 @@
 import { saved_places, users, places } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
-import { 
-    indexSavedPlace, 
-    updateSavedPlaceIndex, 
-    deleteSavedPlaceIndex 
-} from '../config/elasticsearch.js';
 
 // Create a new saved place
 export const createSavedPlace = async (userId, placeData) => {
@@ -35,7 +30,6 @@ export const createSavedPlace = async (userId, placeData) => {
         { $addToSet: { saved_places: insertResult.insertedId } }
     );
     
-    await indexSavedPlace(newPlace); //index for elasticsearch
     
     return newPlace;
 };
