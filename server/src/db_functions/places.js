@@ -1,4 +1,4 @@
-import { places, saved_places } from '../db_config/mongoCollections.js';
+import { places } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
 import axios from 'axios';
 import 'dotenv/config'
@@ -28,71 +28,68 @@ const fetchGooglePlaceDetails = async (googlePlaceId) => {
 
 // Decide whether to import or get a place depending if it already exists in the database
 export const getOrImportPlace = async (googlePlaceId) => {
-    const savedCollection = await saved_places();
-    const cacheCollection = await places();
+    const collection = await places();
 
-    // Check if the place is in saved_places first 
-   const directoryPlace = await savedCollection.findOne({ place_id: googlePlaceId });
-    if (directoryPlace) {
-        console.log(`Found ${googlePlaceId} in Directory (saved_places)`);
-        return normalizePlace(directoryPlace);
-    }
-    
-    // Check if the place is in places second
-    const cachedPlace = await cacheCollection.findOne({ place_id: googlePlaceId });
-    if (cachedPlace) {
-        console.log(`Found ${googlePlaceId} in Cache (places)`);
-        return normalizePlace(cachedPlace);
+    const existingPlace = await collection.findOne({ place_id: googlePlaceId });
+    if (existingPlace) {
+        return normalizePlace(existingPlace);
     }
 
-    // if we dont have the place, we need to import it from the API
+    console.log(`Importing ${googlePlaceId} from Google...`);
     const gPlace = await fetchGooglePlaceDetails(googlePlaceId);
 
-    // Format the data for our schema
     const newPlace = {
         name: gPlace.name,
-        place_id: gPlace.place_id, // The Google ID
+        place_id: gPlace.place_id, // Google ID
         description: gPlace.editorial_summary?.overview || "No description available.",
         address: gPlace.formatted_address,
-        city: gPlace.address_components?.find(c => c.types.includes('locality'))?.long_name || "Unknown City",
-        country: gPlace.address_components?.find(c => c.types.includes('country'))?.long_name || "Unknown Country",
+        city: gPlace.address_components?.find(c => c.types.includes('locality'))?.long_name || "",
+        country: gPlace.address_components?.find(c => c.types.includes('country'))?.long_name || "",
         geolocation: {
             lat: gPlace.geometry?.location?.lat || 0,
             lng: gPlace.geometry?.location?.lng || 0
         },
         rating: gPlace.rating || 0,
-        phone_number: gPlace.formatted_phone_number || "N/A",
+        phone_number: gPlace.formatted_phone_number || "",
         types: gPlace.types || [],
-        // Get the first 3 photo references (Google requires a separate API call to display them, but we store the ref)
+        // Store first 3 photo URLs
         photos: gPlace.photos ? gPlace.photos.slice(0, 3).map(p => 
             `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${p.photo_reference}&key=${process.env.VITE_GOOGLE_MAPS_API_KEY}`
         ) : [],
-        reviews: [],
+        reviews: [], // Will store MongoDB _ids of reviews
         createdAt: new Date()
     };
 
-    // Insert the place into our Places database 
-    const insertInfo = await cacheCollection.insertOne(newPlace);
-    if (!insertInfo.acknowledged) throw new Error('Failed to save place to database');
+    const insertInfo = await collection.insertOne(newPlace);
+    if (!insertInfo.acknowledged) throw new Error('Failed to save place');
 
-   return normalizePlace({ ...newPlace, _id: insertInfo.insertedId });
+    return normalizePlace({ ...newPlace, _id: insertInfo.insertedId });
 };
 
 // Get a place normally, checking both saved_places and places
 export const getPlaceById = async (id) => {
     if (!ObjectId.isValid(id)) return null;
-    const objId = new ObjectId(id);
+    const collection = await places();
+    const place = await collection.findOne({ _id: new ObjectId(id) });
+    return place ? normalizePlace(place) : null;
+};
 
-    const savedCollection = await saved_places();
-    const cacheCollection = await places();
+export const addReviewToPlace = async (placeId, reviewId) => {
+    if (!ObjectId.isValid(placeId) || !ObjectId.isValid(reviewId)) return false;
+    const collection = await places();
+    const result = await collection.updateOne(
+        { _id: new ObjectId(placeId) },
+        { $addToSet: { reviews: new ObjectId(reviewId) } }
+    );
+    return result.modifiedCount > 0;
+};
 
-    // Check Directory first
-    const directoryPlace = await savedCollection.findOne({ _id: objId });
-    if (directoryPlace) return normalizePlace(directoryPlace);
-
-    // Check Cache second
-    const cachedPlace = await cacheCollection.findOne({ _id: objId });
-    if (cachedPlace) return normalizePlace(cachedPlace);
-
-    return null;
+export const removeReviewFromPlace = async (placeId, reviewId) => {
+    if (!ObjectId.isValid(placeId) || !ObjectId.isValid(reviewId)) return false;
+    const collection = await places();
+    const result = await collection.updateOne(
+        { _id: new ObjectId(placeId) },
+        { $pull: { reviews: new ObjectId(reviewId) } }
+    );
+    return result.modifiedCount > 0;
 };

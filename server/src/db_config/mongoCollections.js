@@ -13,6 +13,6 @@ const getCollectionFn = (collection) => {
 //assume we only use db for users, reviews and saved places for now
 export const users = getCollectionFn('users');
 export const reviews = getCollectionFn('reviews');
-export const saved_places = getCollectionFn('saved_places');
+// export const saved_places = getCollectionFn('saved_places');
 export const cities = getCollectionFn('cities');
 export const places = getCollectionFn('places');

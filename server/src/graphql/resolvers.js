@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { users, cities, reviews as reviewsCollection, saved_places, places } from "../db_config/mongoCollections.js";
+import { users, cities, reviews as reviewsCollection, places } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
@@ -40,7 +40,8 @@ const convertReview = (review) => {
             review.user_id.toString() : review.user_id,
         createdAt: review.createdAt?.toISOString(),
         rating: review.rating,
-        notes: review.notes || ''
+        notes: review.notes || '',
+        photos: review.photos || []
     };
 };
 const convertSavedPlace = (place) => {
@@ -54,7 +55,7 @@ const convertSavedPlace = (place) => {
         description: place.description || 'No description given.',
         city: place.city || '',
         country: place.country || '',
-        address: place['Address (approximately)'] || place.address,
+        address: place.address || '',
         rating: place.rating,
         phoneNumber: place.phone_number || '',
         types: place.types || [],
@@ -141,79 +142,45 @@ export const resolvers = {
             const places = await userFunctions.getSavedPlaces(userId);
             return places.map(convertSavedPlace);
         }, 
-getSavedPlace: async (_, { placeId }) => {
-    if (!isValidObjectId(placeId)) {
-        return null;
-    }
+        getSavedPlace: async (_, { placeId }) => {
+            if (!isValidObjectId(placeId)) return null;
 
-    try {
-        const savedPlacesCol = await saved_places();
-        const placesCol = await places(); // Import places collection
-        
-        // First check saved_places (directory)
-        let place = await savedPlacesCol.findOne({ _id: new ObjectId(placeId) });
+            const cacheKey = `place:${placeId}`;
+            const cachedData = await getFromCache(cacheKey);
+            if (cachedData) return cachedData;
 
-        // If not found, check places (cache)
-        if (!place) {
-            place = await placesCol.findOne({ _id: new ObjectId(placeId) });
-        }
+            const place = await placeFunctions.getPlaceById(placeId);
+            if (!place) return null;
 
-        if (!place) {
-            return null;
-        }
+            const reviewsCol = await reviewsCollection();
+            const placeReviews = await reviewsCol.find({ place_id: placeId }).toArray();
 
-        // Get reviews using the MongoDB _id (which is stored as place_id in reviews)
-        const reviewsCol = await reviewsCollection();
-        const placeReviews = await reviewsCol.find({
-            place_id: placeId  // Use the MongoDB _id string
-        }).toArray();
+            let tripliRating = 0;
+            if (placeReviews.length > 0) {
+                const sum = placeReviews.reduce((acc, r) => acc + r.rating, 0);
+                tripliRating = sum / placeReviews.length;
+            }
 
-        // Calculate tripli rating
-        let tripliRating = 0;
-        if (placeReviews.length > 0) {
-            const sum = placeReviews.reduce((acc, r) => acc + r.rating, 0);
-            tripliRating = sum / placeReviews.length;
-        }
+            const usersCol = await users();
+            const reviewsWithUsernames = await Promise.all(
+                placeReviews.map(async (review) => {
+                    const user = await usersCol.findOne({ _id: review.user_id });
+                    return {
+                        ...convertReview(review),
+                        username: user?.username || 'Unknown',
+                    };
+                })
+            );
 
-        // Get usernames
-        const usersCol = await users();
-        const reviewsWithUsernames = await Promise.all(
-            placeReviews.map(async (review) => {
-                const user = await usersCol.findOne({ _id: review.user_id });
-                return {
-                    id: review._id.toString(),
-                    placeId: review.place_id,
-                    placeName: review.place_name,
-                    userId: review.user_id.toString(),
-                    username: user?.username || 'Unknown',
-                    rating: review.rating,
-                    notes: review.notes || '',
-                    photos: review.photos || [],
-                    createdAt: review.createdAt.toISOString()
-                };
-            })
-        );
+            const result = {
+                ...convertSavedPlace(place),
+                tripliRating: parseFloat(tripliRating.toFixed(1)),
+                reviews: reviewsWithUsernames
+            };
 
-        return {
-            id: place._id.toString(),
-            placeId: place.place_id,
-            name: place.name,
-            description: place.description || '',
-            city: place.city,
-            country: place.country,
-            address: place.address || null,
-            rating: place.rating || null,
-            tripliRating: parseFloat(tripliRating.toFixed(1)),
-            phoneNumber: place.phone_number || null,
-            types: place.types || [],
-            photos: place.photos || [],
-            reviews: reviewsWithUsernames
-        };
-    } catch (error) {
-        console.error('Error in getSavedPlace:', error);
-        return null;
-    }
-},
+            await setCache(cacheKey, result, 3600); // cache for 1 hour
+            return result;
+        },
         searchCities: async (_, { query }) => {
             if (!query || query.trim() === '') return [];
 
@@ -364,6 +331,7 @@ getSavedPlace: async (_, { placeId }) => {
             }
             try {
                 const updatedUser = await friendFunctions.acceptFriendRequest(currentUserId, friendId);
+                await deletekeywithPattern('topspots:*');
                 return convertUser(updatedUser);
             }
             catch (error) {
@@ -376,6 +344,7 @@ getSavedPlace: async (_, { placeId }) => {
             }
             try {
                 const updatedUser = await friendFunctions.rejectFriendRequest(currentUserId, friendId);
+                await deletekeywithPattern('topspots:*');
                 return convertUser(updatedUser);
             }
             catch (error) {
@@ -406,8 +375,10 @@ getSavedPlace: async (_, { placeId }) => {
             }
             try {
                 const review = await reviewFunctions.createReview(userId, placeId.trim(), placeName.trim(), rating, notes?.trim(), photos);
+                await placeFunctions.addReviewToPlace(placeId, review._id.toString());
                 if(review){
                     await deletekeywithPattern('topspots:*'); // Invalidate relevant cache
+                    await client.del(`place:${placeId}`);
                 }
                 return convertReview(review);
             }
