@@ -5,7 +5,7 @@ import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
 import * as topspotFunctions from '../db_functions/topspots.js';
 import * as placeFunctions from '../db_functions/places.js';
-
+import { setCache, getFromCache, deletekeywithPattern } from '../config/redishelper.js';
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
 import { client } from '../server.js';
@@ -215,8 +215,13 @@ getSavedPlace: async (_, { placeId }) => {
     }
 },
         searchCities: async (_, { query }) => {
-            const trimmed = query?.trim();
+            if (!query || query.trim() === '') return [];
 
+            const cacheKey = `search:cities:${query.toLowerCase()}`;
+            const cached = await getFromCache(cacheKey);
+            if (cached) return cached;
+
+            var trimmed = query.trim();
             if (!trimmed || trimmed.length < 1) {
                 throw new Error('Search query must be at least 1 character');
             }
@@ -224,19 +229,28 @@ getSavedPlace: async (_, { placeId }) => {
             const { searchCitiesElastic } = await import('../config/elasticsearch.js');
             const results = await searchCitiesElastic(trimmed); //use elasticsearch to search
 
-            return results.map(city => ({
+            const result = results.map(city => ({
                 name: city.name,
                 country: city.country,
-                lat: parseFloat(city.lat),
-                lng: parseFloat(city.lng),
+                lat: city.lat,
+                lng: city.lng
             }));
+
+            await setCache(cacheKey, result, 100000);
+
+            return result;
         },
         getGlobalTopRatedSpots: async (_, { limit = 10, country, city }) => {
             try {
-                const spots = await topspotFunctions.getGlobalTopRatedSpots(limit, country, city);
-                return spots.map(spot => ({
-                    ...spot,
-                }));
+                const cacheKey = `topspots:global:${limit || 10}:${country || 'all'}:${city || 'all'}`;
+                const cached = await getFromCache(cacheKey);
+                if (cached) return cached;
+
+                const topSpots = await topspotFunctions.getGlobalTopRatedSpots(limit, country, city);
+
+                await setCache(cacheKey, topSpots, 300); // Cache for 5 minutes
+
+                return topSpots;
             } catch (error) {
                 throw new Error(`Error fetching global top rated spots: ${error.message}`);
             }
@@ -247,7 +261,13 @@ getSavedPlace: async (_, { placeId }) => {
             }
 
             try {
-                return await topspotFunctions.getUserAndFriendsTopRatedSpots(userId, limit, country, city);
+                const cacheKey = `topspots:user:${userId}:${limit || 10}:${country || 'all'}:${city || 'all'}`;
+                const cached = await getFromCache(cacheKey);
+                if (cached) return cached;
+                const topSpots = await topspotFunctions.getUserAndFriendsTopRatedSpots(userId, limit, country, city);
+                // Cache result
+                await setCache(cacheKey, topSpots, 300); // Cache for 5 minutes
+                return topSpots;
             } catch (error) {
                 throw new Error(`Error fetching user and friends top rated spots: ${error.message}`);
             }
@@ -386,6 +406,9 @@ getSavedPlace: async (_, { placeId }) => {
             }
             try {
                 const review = await reviewFunctions.createReview(userId, placeId.trim(), placeName.trim(), rating, notes?.trim(), photos);
+                if(review){
+                    await deletekeywithPattern('topspots:*'); // Invalidate relevant cache
+                }
                 return convertReview(review);
             }
             catch (error) {
@@ -398,6 +421,10 @@ getSavedPlace: async (_, { placeId }) => {
             }
             try {
                 const success = await reviewFunctions.deleteReview(userId, reviewId);
+                if (success) {
+                    await deletekeywithPattern('topspots:*');
+                }
+        
                 return success;
             }
             catch (error) {
