@@ -1,9 +1,11 @@
 import { ObjectId } from 'mongodb';
-import { users, cities, reviews as reviewsCollection, saved_places } from "../db_config/mongoCollections.js";
+import { users, cities, reviews as reviewsCollection, saved_places, places } from "../db_config/mongoCollections.js";
 import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
 import * as topspotFunctions from '../db_functions/topspots.js';
+import * as placeFunctions from '../db_functions/places.js'; 
+
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
 import { client } from '../server.js';
@@ -41,6 +43,25 @@ const convertReview = (review) => {
         notes: review.notes || ''
     };
 };
+const convertSavedPlace = (place) => {
+    if (!place) {
+        return null;
+    }
+    return {
+        id: place._id?.toString() || place._id,
+        placeId: place.place_id || '',
+        name: place.name,
+        description: place.description || 'No description given.',
+        city: place.city || '',
+        country: place.country || '',
+        address: place['Address (approximately)'] || place.address,
+        rating: place.rating,
+        phoneNumber: place.phone_number || '',
+        types: place.types || [],
+        photos: place.photos || [],
+        reviews: place.reviews || []
+    }
+};
 export const resolvers = {
     Query: {
         getUser: async (_, { id }) => {
@@ -62,6 +83,11 @@ export const resolvers = {
                 throw new Error('User not found');
             }
             return convertUser(user);
+        },
+        getPlace: async (_, { id }) => {
+            const place = await placeFunctions.getPlaceById(id);
+            if (!place) throw new Error("Place not found");
+            return convertSavedPlace(place);
         },
         searchUsers: async (_, { query }) => {
             if (!query || query.trim() === '') {
@@ -114,7 +140,80 @@ export const resolvers = {
             }
             const places = await userFunctions.getSavedPlaces(userId);
             return (places || []).map(p => p.toString());
-        },
+        }, 
+getSavedPlace: async (_, { placeId }) => {
+    if (!isValidObjectId(placeId)) {
+        return null;
+    }
+
+    try {
+        const savedPlacesCol = await saved_places();
+        const placesCol = await places(); // Import places collection
+        
+        // First check saved_places (directory)
+        let place = await savedPlacesCol.findOne({ _id: new ObjectId(placeId) });
+
+        // If not found, check places (cache)
+        if (!place) {
+            place = await placesCol.findOne({ _id: new ObjectId(placeId) });
+        }
+
+        if (!place) {
+            return null;
+        }
+
+        // Get reviews using the MongoDB _id (which is stored as place_id in reviews)
+        const reviewsCol = await reviewsCollection();
+        const placeReviews = await reviewsCol.find({
+            place_id: placeId  // Use the MongoDB _id string
+        }).toArray();
+
+        // Calculate tripli rating
+        let tripliRating = 0;
+        if (placeReviews.length > 0) {
+            const sum = placeReviews.reduce((acc, r) => acc + r.rating, 0);
+            tripliRating = sum / placeReviews.length;
+        }
+
+        // Get usernames
+        const usersCol = await users();
+        const reviewsWithUsernames = await Promise.all(
+            placeReviews.map(async (review) => {
+                const user = await usersCol.findOne({ _id: review.user_id });
+                return {
+                    id: review._id.toString(),
+                    placeId: review.place_id,
+                    placeName: review.place_name,
+                    userId: review.user_id.toString(),
+                    username: user?.username || 'Unknown',
+                    rating: review.rating,
+                    notes: review.notes || '',
+                    photos: review.photos || [],
+                    createdAt: review.createdAt.toISOString()
+                };
+            })
+        );
+
+        return {
+            id: place._id.toString(),
+            placeId: place.place_id,
+            name: place.name,
+            description: place.description || '',
+            city: place.city,
+            country: place.country,
+            address: place.address || null,
+            rating: place.rating || null,
+            tripliRating: parseFloat(tripliRating.toFixed(1)),
+            phoneNumber: place.phone_number || null,
+            types: place.types || [],
+            photos: place.photos || [],
+            reviews: reviewsWithUsernames
+        };
+    } catch (error) {
+        console.error('Error in getSavedPlace:', error);
+        return null;
+    }
+},
         searchCities: async (_, { query }) => {
             const trimmed = query?.trim();
 
@@ -137,7 +236,6 @@ export const resolvers = {
                 const spots = await topspotFunctions.getGlobalTopRatedSpots(limit, country, city);
                 return spots.map(spot => ({
                     ...spot,
-                    latestReview: convertReview(spot.latestReview)
                 }));
             } catch (error) {
                 throw new Error(`Error fetching global top rated spots: ${error.message}`);
@@ -276,7 +374,7 @@ export const resolvers = {
                 throw new Error(error.message);
             }
         },
-        createReview: async (_, { userId, placeId, placeName, rating, notes }) => {
+        createReview: async (_, { userId, placeId, placeName, rating, notes, photos }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
@@ -287,7 +385,7 @@ export const resolvers = {
                 throw new Error('Rating must be between 1 and 5');
             }
             try {
-                const review = await reviewFunctions.createReview(userId, placeId.trim(), placeName.trim(), rating, notes?.trim());
+                const review = await reviewFunctions.createReview(userId, placeId.trim(), placeName.trim(), rating, notes?.trim(), photos);
                 return convertReview(review);
             }
             catch (error) {
@@ -325,7 +423,17 @@ export const resolvers = {
             }
             const res = await userFunctions.removeSavedPlace(userId, placeId.trim());
             return res; //true if modified, false otherwise
+        },
+        importGooglePlace: async (_, { googlePlaceId }) => {
+            try {
+                const place = await placeFunctions.getOrImportPlace(googlePlaceId);
+                return convertSavedPlace(place);
+            } catch (e) {
+                throw new Error(e.message);
+            }
         }
+
+
     },
     //Field resolvers
     User: {
@@ -381,5 +489,62 @@ export const resolvers = {
             const requests = await usersCollection.find({ _id: { $in: requestIds } }).toArray();
             return requests.map(convertUser);
         }
-    }
-};
+    }}
+//     ,SavedPlace: {
+//         reviews: async (parent) => {
+//             if (!parent.reviews || parent.reviews.length === 0) {
+//                 return [];
+//             }
+
+//             if (parent.reviews[0].rating !== undefined) {
+//                 return parent.reviews;
+//             }
+
+//             try {
+//                 const reviewsCollection = await reviewsCol();
+//                 const reviewIds = parent.reviews.map(id => new ObjectId(id));
+//                 const reviewDocs = await reviewsCollection.find({ _id: { $in: reviewIds } }).toArray();
+//                 return reviewDocs.map(convertReview);
+//             } catch (e) {
+//                 console.error(e);
+//                 return [];
+//             }
+//         },
+//         tripliRating: async (parent) => {
+//             // If no reviews, return null or 0
+//             if (!parent.reviews || parent.reviews.length === 0) return 0;
+
+//             // Fetch the reviews to calculate average
+//             const reviewsCollection = await reviewsCol();
+//             // Handle if parent.reviews is IDs or Objects
+//             let reviewIds = [];
+//             if (typeof parent.reviews[0] === 'string' || parent.reviews[0] instanceof ObjectId) {
+//                  reviewIds = parent.reviews.map(id => new ObjectId(id));
+//             } else if (parent.reviews[0]._id) {
+//                  reviewIds = parent.reviews.map(r => new ObjectId(r._id));
+//             }
+
+//             if (reviewIds.length === 0) return 0;
+
+//             const reviewDocs = await reviewsCollection.find({ _id: { $in: reviewIds } }).toArray();
+            
+//             if (reviewDocs.length === 0) return 0;
+
+//             // Calculate Average
+//             const total = reviewDocs.reduce((acc, curr) => acc + curr.rating, 0);
+//             return (total / reviewDocs.length).toFixed(1);
+//         }
+//     },
+//     Review: {
+//         username: async (parent) => {
+//             if (parent.username) return parent.username;
+//             try {
+//                 const user = await userFunctions.findUserById(parent.userId);
+//                 return user ? user.username : "Unknown User";
+//             } catch (e) {
+//                 return "Unknown User";
+//             }
+//         }
+//     },
+
+// };
