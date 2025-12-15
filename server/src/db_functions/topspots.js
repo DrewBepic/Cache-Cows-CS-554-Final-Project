@@ -22,18 +22,16 @@ export const getGlobalTopRatedSpots = async (limit = 10, country, city) => {
     ];
     //get aggregated reviews to array
     const aggregatedReviews = await reviewsCol.aggregate(pipeline).toArray();
-    const googlePlaceIds = aggregatedReviews.map(spot => spot._id);  // These are strings
+    const placeObjectIds = aggregatedReviews.map(spot => new ObjectId(spot._id));
     // Fetch place details from saved_places collection so that we get city and country info
     const placesData = await savedPlacesCol.find(
-        { place_id: { $in: googlePlaceIds } },  // Match by place_id field, not _id
-        { projection: { _id: 1, place_id: 1, city: 1, country: 1, address: 1, photos: 1, types: 1 } }
+        { _id: { $in: placeObjectIds } },
+        { projection: { _id: 1, city: 1, country: 1, address: 1, photos: 1, types: 1 } }
     ).toArray();
     // create a map for easy lookup and prepare to match results
     const placeDataMap = {};
     placesData.forEach(place => {
-
-        placeDataMap[place.place_id] = {
-            savedPlaceId: place._id.toString(),
+        placeDataMap[place._id.toString()] = {
             city: place.city,
             country: place.country,
             address: place.address,
@@ -43,19 +41,17 @@ export const getGlobalTopRatedSpots = async (limit = 10, country, city) => {
     });
     // Map aggregated reviews to TopRatedSpot format
     let results = aggregatedReviews.map(spot => {
-        const placeData = placeDataMap[spot._id] || {};
-        if (!placeData.savedPlaceId) {
-            return null;
-        }
+        const placeData = placeDataMap[spot._id.toString()] || {};
+
         return {
-            placeId: placeData.savedPlaceId,//spot._id,
+            placeId: spot._id.toString(),
             placeName: spot.placeName,
             averageRating: parseFloat(spot.averageRating.toFixed(2)),
             reviewCount: spot.reviewCount,
             country: placeData.country || null,
             city: placeData.city || null
         };
-    }).filter(spot => spot !== null);
+    });
 
     // Apply filters
     if (country) {
@@ -103,37 +99,33 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 10, country
     ];
     // Get aggregated reviews to array
     const aggregatedReviews = await reviewsCol.aggregate(pipeline).toArray();
-    const googlePlaceIds = aggregatedReviews.map(spot => spot._id);
+    const placeObjectIds = aggregatedReviews.map(spot => new ObjectId(spot._id));
     // Fetch place details from saved_places collection to get city and country info
     const placesData = await savedPlacesCol.find(
-        { place_id: { $in: googlePlaceIds } },  // Match by place_id field
-        { projection: { _id: 1, place_id: 1, city: 1, country: 1 } }
+        { _id: { $in: placeObjectIds } },
+        { projection: { _id: 1, city: 1, country: 1 } }
     ).toArray();
     //prepare place data map and match results
     const placeDataMap = {};
     placesData.forEach(place => {
-        placeDataMap[place.place_id] = {
-            savedPlaceId: place._id.toString(),
+        placeDataMap[place._id.toString()] = {
             city: place.city,
             country: place.country
         };
     });
     // Map aggregated reviews to TopRatedSpot format
     let results = aggregatedReviews.map(spot => {
-        const placeData = placeDataMap[spot._id] || {};
+        const placeData = placeDataMap[spot._id.toString()] || {};
 
-        if (!placeData.savedPlaceId) {
-            return null;
-        }
         return {
-            placeId: placeData.savedPlaceId,//spot._id,
+            placeId: spot._id.toString(),
             placeName: spot.placeName,
             averageRating: parseFloat(spot.averageRating.toFixed(2)),
             reviewCount: spot.reviewCount,
             country: placeData.country || null,
             city: placeData.city || null,
         };
-    }).filter(spot => spot !== null);
+    });
 
     // Apply filters
     if (country) {
