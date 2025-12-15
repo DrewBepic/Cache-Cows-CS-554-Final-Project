@@ -54,7 +54,6 @@ export const indexAllCities = async (citiesArray) => {
 export const searchCitiesElastic = async (query) => {
     try {
         const result = await client.search({
-            //refers to the index created for cities
             index: 'cities',
             body: {
                 query: {
@@ -64,14 +63,15 @@ export const searchCitiesElastic = async (query) => {
                                 match: {
                                     name: {
                                         query: query,
-                                        fuzziness: 'AUTO', //allowing for minor typos
+                                        fuzziness: 'AUTO',
+                                        boost: 2  //  Prioritize exact matches
                                     }
                                 }
                             },
                             {
                                 wildcard: {
                                     name: {
-                                        value: `*${query.toLowerCase()}*`, //Partial/Substring Match
+                                        value: `*${query.toLowerCase()}*`,
                                     }
                                 }
                             }
@@ -79,7 +79,7 @@ export const searchCitiesElastic = async (query) => {
                         minimum_should_match: 1
                     }
                 },
-                size: 50
+                size: 10  //  10 for faster results
             }
         });
 
