@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client';
 import { useState, useEffect } from 'react';
 import { Modal, Button, Form, Container, Alert, Card, Badge } from 'react-bootstrap';
-import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW, GET_FRIENDS, GET_USER, GET_USER_REVIEWS, GET_SAVED_PLACES, ADD_SAVED_PLACE, REMOVE_SAVED_PLACE } from '../queries';
+import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW, GET_FRIENDS, GET_USER, GET_USER_REVIEWS, GET_SAVED_PLACES, ADD_SAVED_PLACE, REMOVE_SAVED_PLACE, GET_GLOBAL_TOP_SPOTS, GET_FRIENDS_TOP_SPOTS } from '../queries';
 import './PlaceDetail.css';
 
 function PlaceDetail({ userId }) {
@@ -44,16 +44,16 @@ function PlaceDetail({ userId }) {
       refetchQueries: [
           { query: GET_USER_REVIEWS, variables: { userId } },
           { query: GET_SAVED_PLACE, variables: { placeId } },
-          'GetGlobalTopRatedSpots',
-          'GetFriendsTopRatedSpots'
+          { query: GET_GLOBAL_TOP_SPOTS, variables: { limit: 10 } }, 
+          { query: GET_FRIENDS_TOP_SPOTS, variables: { userId, limit: 10 } }
       ]
   });
   const [deleteReview] = useMutation(DELETE_REVIEW, {
       refetchQueries: [
           { query: GET_USER_REVIEWS, variables: { userId } },
           { query: GET_SAVED_PLACE, variables: { placeId } },
-          'GetGlobalTopRatedSpots',
-          'GetFriendsTopRatedSpots'
+          { query: GET_GLOBAL_TOP_SPOTS, variables: { limit: 10 } },
+          { query: GET_FRIENDS_TOP_SPOTS, variables: { userId, limit: 10 } }
       ]
   });
   const [addSavedPlace] = useMutation(ADD_SAVED_PLACE, {
