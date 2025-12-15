@@ -42,8 +42,17 @@ function PlaceDetail({ userId }) {
 
   const [createReview] = useMutation(CREATE_REVIEW);
   const [deleteReview] = useMutation(DELETE_REVIEW);
-  const [addSavedPlace] = useMutation(ADD_SAVED_PLACE);
-  const [removeSavedPlace] = useMutation(REMOVE_SAVED_PLACE);
+  const [addSavedPlace] = useMutation(ADD_SAVED_PLACE, {
+      refetchQueries: [
+          { query: GET_USER, variables: { id: userId } }
+      ]
+  });
+
+  const [removeSavedPlace] = useMutation(REMOVE_SAVED_PLACE, {
+      refetchQueries: [
+          { query: GET_USER, variables: { id: userId } }
+      ]
+  });
 
   useEffect(() => {
       if (userData?.getUser?.savedPlaces && placeId) {
@@ -60,7 +69,6 @@ function PlaceDetail({ userId }) {
               await addSavedPlace({ variables: { userId, placeId } });
               setIsBookmarked(true);
           }
-          refetchUser(); // Refresh user list
       } catch (e) {
           alert("Failed to update bookmark: " + e.message);
       }
