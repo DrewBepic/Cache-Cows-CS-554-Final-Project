@@ -22,15 +22,16 @@ export const getGlobalTopRatedSpots = async (limit = 10, country, city) => {
     ];
     //get aggregated reviews to array
     const aggregatedReviews = await reviewsCol.aggregate(pipeline).toArray();
-    const placeIds = aggregatedReviews.map(spot => spot._id);
+    const googlePlaceIds = aggregatedReviews.map(spot => spot._id);  // These are strings
     // Fetch place details from saved_places collection so that we get city and country info
     const placesData = await savedPlacesCol.find(
-        { place_id: { $in: placeIds } },
-        { projection: { place_id: 1, city: 1, country: 1, address: 1, photos: 1, types: 1 } }
+        { place_id: { $in: googlePlaceIds } },  // Match by place_id field, not _id
+        { projection: { _id: 1, place_id: 1, city: 1, country: 1, address: 1, photos: 1, types: 1 } }
     ).toArray();
     // create a map for easy lookup and prepare to match results
     const placeDataMap = {};
     placesData.forEach(place => {
+
         placeDataMap[place.place_id] = {
             savedPlaceId: place._id.toString(),
             city: place.city,
@@ -43,7 +44,7 @@ export const getGlobalTopRatedSpots = async (limit = 10, country, city) => {
     // Map aggregated reviews to TopRatedSpot format
     let results = aggregatedReviews.map(spot => {
         const placeData = placeDataMap[spot._id] || {};
-        if (!placeData.savedPlaceId) { 
+        if (!placeData.savedPlaceId) {
             return null;
         }
         return {
@@ -102,17 +103,17 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 10, country
     ];
     // Get aggregated reviews to array
     const aggregatedReviews = await reviewsCol.aggregate(pipeline).toArray();
-    const placeIds = aggregatedReviews.map(spot => spot._id);
+    const googlePlaceIds = aggregatedReviews.map(spot => spot._id);
     // Fetch place details from saved_places collection to get city and country info
     const placesData = await savedPlacesCol.find(
-        { place_id: { $in: placeIds } },
-        { projection: { place_id: 1, city: 1, country: 1 } }
+        { place_id: { $in: googlePlaceIds } },  // Match by place_id field
+        { projection: { _id: 1, place_id: 1, city: 1, country: 1 } }
     ).toArray();
     //prepare place data map and match results
     const placeDataMap = {};
     placesData.forEach(place => {
         placeDataMap[place.place_id] = {
-            savedPlaceId: place._id.toString(), 
+            savedPlaceId: place._id.toString(),
             city: place.city,
             country: place.country
         };
@@ -121,7 +122,7 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 10, country
     let results = aggregatedReviews.map(spot => {
         const placeData = placeDataMap[spot._id] || {};
 
-        if (!placeData.savedPlaceId) { 
+        if (!placeData.savedPlaceId) {
             return null;
         }
         return {
