@@ -4,7 +4,7 @@ import * as userFunctions from '../db_functions/users.js';
 import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
 import * as topspotFunctions from '../db_functions/topspots.js';
-import * as placeFunctions from '../db_functions/places.js'; 
+import * as placeFunctions from '../db_functions/places.js';
 
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
@@ -139,7 +139,7 @@ export const resolvers = {
                 throw new Error('Invalid user ID format');
             }
             const places = await userFunctions.getSavedPlaces(userId);
-            return (places || []).map(p => p.toString());
+            return places.map(convertSavedPlace);
         }, 
 getSavedPlace: async (_, { placeId }) => {
     if (!isValidObjectId(placeId)) {
