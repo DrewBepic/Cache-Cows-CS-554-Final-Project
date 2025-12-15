@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client';
 import { useState, useEffect } from 'react';
 import { Modal, Button, Form, Container, Alert, Card, Badge } from 'react-bootstrap';
-import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW, GET_FRIENDS, GET_USER, ADD_SAVED_PLACE, REMOVE_SAVED_PLACE } from '../queries';
+import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW, GET_FRIENDS, GET_USER, GET_USER_REVIEWS, GET_SAVED_PLACES, ADD_SAVED_PLACE, REMOVE_SAVED_PLACE } from '../queries';
 import './PlaceDetail.css';
 
 function PlaceDetail({ userId }) {
@@ -40,17 +40,33 @@ function PlaceDetail({ userId }) {
       skip: !userId
   });
 
-  const [createReview] = useMutation(CREATE_REVIEW);
-  const [deleteReview] = useMutation(DELETE_REVIEW);
+  const [createReview] = useMutation(CREATE_REVIEW, {
+      refetchQueries: [
+          { query: GET_USER_REVIEWS, variables: { userId } },
+          { query: GET_SAVED_PLACE, variables: { placeId } },
+          'GetGlobalTopRatedSpots',
+          'GetFriendsTopRatedSpots'
+      ]
+  });
+  const [deleteReview] = useMutation(DELETE_REVIEW, {
+      refetchQueries: [
+          { query: GET_USER_REVIEWS, variables: { userId } },
+          { query: GET_SAVED_PLACE, variables: { placeId } },
+          'GetGlobalTopRatedSpots',
+          'GetFriendsTopRatedSpots'
+      ]
+  });
   const [addSavedPlace] = useMutation(ADD_SAVED_PLACE, {
       refetchQueries: [
-          { query: GET_USER, variables: { id: userId } }
+          { query: GET_USER, variables: { id: userId } },
+          { query: GET_SAVED_PLACES, variables: { userId } }
       ]
   });
 
   const [removeSavedPlace] = useMutation(REMOVE_SAVED_PLACE, {
       refetchQueries: [
-          { query: GET_USER, variables: { id: userId } }
+          { query: GET_USER, variables: { id: userId } },
+          { query: GET_SAVED_PLACES, variables: { userId } }
       ]
   });
 
@@ -143,7 +159,6 @@ function PlaceDetail({ userId }) {
       setShowModal(false);
       setReviewForm({ rating: 5, notes: '' });
       setValidated(false);
-      refetch();
     } catch (e) {
       alert("Error submitting review: " + e.message);
     }
@@ -155,7 +170,6 @@ function PlaceDetail({ userId }) {
       await deleteReview({
         variables: { userId: userId, reviewId: myReview.id }
       });
-      refetch();
     } catch (e) {
       alert("Error deleting review");
     }

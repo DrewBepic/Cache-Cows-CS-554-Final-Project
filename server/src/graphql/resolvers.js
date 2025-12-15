@@ -331,6 +331,7 @@ export const resolvers = {
             }
             try {
                 const updatedUser = await friendFunctions.acceptFriendRequest(currentUserId, friendId);
+                await deletekeywithPattern('topspots:*');
                 return convertUser(updatedUser);
             }
             catch (error) {
@@ -343,6 +344,7 @@ export const resolvers = {
             }
             try {
                 const updatedUser = await friendFunctions.rejectFriendRequest(currentUserId, friendId);
+                await deletekeywithPattern('topspots:*');
                 return convertUser(updatedUser);
             }
             catch (error) {

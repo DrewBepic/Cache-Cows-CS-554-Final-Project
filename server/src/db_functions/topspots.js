@@ -22,12 +22,18 @@ export const getGlobalTopRatedSpots = async (limit = 10, country, city) => {
     ];
     //get aggregated reviews to array
     const aggregatedReviews = await reviewsCol.aggregate(pipeline).toArray();
-    const placeObjectIds = aggregatedReviews.map(spot => new ObjectId(spot._id));
+    
+    // Safety check: ensure _id is valid before converting
+    const placeObjectIds = aggregatedReviews
+        .filter(spot => ObjectId.isValid(spot._id))
+        .map(spot => new ObjectId(spot._id));
+
     // Fetch place details from places collection so that we get city and country info
     const placesData = await placesCol.find(
         { _id: { $in: placeObjectIds } },
         { projection: { _id: 1, city: 1, country: 1, address: 1, photos: 1, types: 1 } }
     ).toArray();
+    
     // create a map for easy lookup and prepare to match results
     const placeDataMap = {};
     placesData.forEach(place => {
@@ -65,7 +71,7 @@ export const getGlobalTopRatedSpots = async (limit = 10, country, city) => {
         );
     }
 
-    return results.slice(0, limit); // return only up to the specified limit to avoid excessive data
+    return results.slice(0, limit); 
 };
 
 // Get user and friends top rated spots
@@ -76,13 +82,14 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 10, country
     }
     // Get friends' IDs
     const friends = await friendFunctions.getUserFriends(userId);
-    const friendIds = friends.map(friend => new ObjectId(friend._id));
-    // Combine user ID with friends' IDs
-    // const allUserIds = [new ObjectId(userId), ...friendIds];
+    const friendIds = friends.map(friend => new ObjectId(friend._id.toString()));
+    
+    // Combine user ID with friends' IDs (Currently set to ONLY friends based on your code)
     const allUserIds = friendIds;
 
     const reviewsCol = await reviewsCollection();
     const placesCol = await places();
+    
     // Aggregation pipeline to calculate average ratings and review counts for user and friends
     const pipeline = [
         { $match: { user_id: { $in: allUserIds } } },
@@ -99,12 +106,17 @@ export const getUserAndFriendsTopRatedSpots = async (userId, limit = 10, country
     ];
     // Get aggregated reviews to array
     const aggregatedReviews = await reviewsCol.aggregate(pipeline).toArray();
-    const placeObjectIds = aggregatedReviews.map(spot => new ObjectId(spot._id));
+    
+    const placeObjectIds = aggregatedReviews
+        .filter(spot => ObjectId.isValid(spot._id))
+        .map(spot => new ObjectId(spot._id));
+
     // Fetch place details from places collection to get city and country info
     const placesData = await placesCol.find(
         { _id: { $in: placeObjectIds } },
         { projection: { _id: 1, city: 1, country: 1 } }
     ).toArray();
+    
     //prepare place data map and match results
     const placeDataMap = {};
     placesData.forEach(place => {
