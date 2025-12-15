@@ -4,9 +4,9 @@ import { GET_GLOBAL_TOP_SPOTS, GET_FRIENDS_TOP_SPOTS } from '../queries';
 import { useNavigate } from 'react-router-dom';
 import LBTable from '../components/LBTable';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { 
-  Container, Row, Col, Card, Button, Alert, Spinner, ListGroup, Form,
-  InputGroup, Badge, Tab, Tabs
+import {
+    Container, Row, Col, Card, Button, Alert, Spinner, ListGroup, Form,
+    InputGroup, Badge, Tab, Tabs
 } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 const Leaderboard = ({ currentUserId }) => {
@@ -18,15 +18,11 @@ const Leaderboard = ({ currentUserId }) => {
     const [globalCountryFilter, setGlobalCountryFilter] = useState('');
     const [friendsCountryFilter, setFriendsCountryFilter] = useState('');
 
-    // Check if user is logged in - redirect to login if not
-    React.useEffect(() => {
-        if (!currentUserId) {
-            // navigate('/login');
-        }
-    }, [currentUserId, navigate]);
 
-    // Don't render anything while redirecting to login
-    if (!currentUserId) {
+    const userId = currentUserId || localStorage.getItem('currentUserId');
+
+    // Check if logged in
+    if (!userId) {
         return (
             <Container className="my-5">
                 <Alert variant="warning">
@@ -56,7 +52,7 @@ const Leaderboard = ({ currentUserId }) => {
             country: friendsCountryFilter || undefined,
         },
     });
-    
+
     // initialise variable and get data from query data
     let globalSpots = [];
     if (globalData && globalData.getGlobalTopRatedSpots) {
