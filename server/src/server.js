@@ -33,7 +33,7 @@ export const client = createClient({
 });
 
 await client.connect();
-
+// Initialize Elasticsearch
 try {
     await initializeElasticsearch();
     console.log('Successs Elasticsearch initialized');
