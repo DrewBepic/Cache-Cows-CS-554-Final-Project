@@ -1,8 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation, useApolloClient } from '@apollo/client';
 import { useState, useEffect } from 'react';
 import { Modal, Button, Form, Container, Alert, Card, Badge } from 'react-bootstrap';
-import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW, GET_FRIENDS, GET_USER, GET_USER_REVIEWS, GET_SAVED_PLACES, ADD_SAVED_PLACE, REMOVE_SAVED_PLACE, GET_GLOBAL_TOP_SPOTS, GET_FRIENDS_TOP_SPOTS } from '../queries';
+import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW, GET_FRIENDS, GET_USER, GET_USER_REVIEWS, GET_SAVED_PLACES, ADD_SAVED_PLACE, REMOVE_SAVED_PLACE, GET_GLOBAL_TOP_SPOTS, GET_FRIENDS_TOP_SPOTS, GET_COMPARISON_CANDIDATES, FINALIZE_COMPARATIVE_RATING } from '../queries';
 import './PlaceDetail.css';
 import axios from 'axios';
 
@@ -18,6 +18,12 @@ function PlaceDetail({ userId: incomingUserId }) {
   const [placePhotos, setPlacePhotos] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  const client = useApolloClient();
+
+  const [cmpVisible, setCmpVisible] = useState(false);
+  const [cmpData, setCmpData] = useState(null);
+  const [chosenCandidate, setChosenCandidate] = useState(null);
+  const [stage, setStage] = useState('CHOOSE_CLOSER');
 
   if (!userId) {
     return (
@@ -46,34 +52,38 @@ function PlaceDetail({ userId: incomingUserId }) {
   });
 
   const [createReview] = useMutation(CREATE_REVIEW, {
-      refetchQueries: [
-          { query: GET_USER_REVIEWS, variables: { userId } },
-          { query: GET_SAVED_PLACE, variables: { placeId } },
-          { query: GET_GLOBAL_TOP_SPOTS, variables: { limit: 10 } }, 
-          { query: GET_FRIENDS_TOP_SPOTS, variables: { userId, limit: 10 } }
-      ]
+    refetchQueries: [
+      { query: GET_USER_REVIEWS, variables: { userId } },
+      { query: GET_SAVED_PLACE, variables: { placeId } },
+      { query: GET_GLOBAL_TOP_SPOTS, variables: { limit: 10 } },
+      { query: GET_FRIENDS_TOP_SPOTS, variables: { userId, limit: 10 } }
+    ]
   });
+
   const [deleteReview] = useMutation(DELETE_REVIEW, {
-      refetchQueries: [
-          { query: GET_USER_REVIEWS, variables: { userId } },
-          { query: GET_SAVED_PLACE, variables: { placeId } },
-          { query: GET_GLOBAL_TOP_SPOTS, variables: { limit: 10 } },
-          { query: GET_FRIENDS_TOP_SPOTS, variables: { userId, limit: 10 } }
-      ]
+    refetchQueries: [
+      { query: GET_USER_REVIEWS, variables: { userId } },
+      { query: GET_SAVED_PLACE, variables: { placeId } },
+      { query: GET_GLOBAL_TOP_SPOTS, variables: { limit: 10 } },
+      { query: GET_FRIENDS_TOP_SPOTS, variables: { userId, limit: 10 } }
+    ]
   });
+
   const [addSavedPlace] = useMutation(ADD_SAVED_PLACE, {
-      refetchQueries: [
-          { query: GET_USER, variables: { id: userId } },
-          { query: GET_SAVED_PLACES, variables: { userId } }
-      ]
+    refetchQueries: [
+      { query: GET_USER, variables: { id: userId } },
+      { query: GET_SAVED_PLACES, variables: { userId } }
+    ]
   });
 
   const [removeSavedPlace] = useMutation(REMOVE_SAVED_PLACE, {
-      refetchQueries: [
-          { query: GET_USER, variables: { id: userId } },
-          { query: GET_SAVED_PLACES, variables: { userId } }
-      ]
+    refetchQueries: [
+      { query: GET_USER, variables: { id: userId } },
+      { query: GET_SAVED_PLACES, variables: { userId } }
+    ]
   });
+
+  const [finalizeRating] = useMutation(FINALIZE_COMPARATIVE_RATING);
 
   useEffect(() => {
     if (userData?.getUser?.savedPlaces && placeId) {
@@ -82,7 +92,7 @@ function PlaceDetail({ userId: incomingUserId }) {
   }, [userData, placeId]);
 
   useEffect(() => {
-    const googlePlaceId = data?.getSavedPlace?.placeId; // Google Place ID (e.g., "ChIJC3...")
+    const googlePlaceId = data?.getSavedPlace?.placeId;
     if (!googlePlaceId) return;
 
     const fetchPhotos = async () => {
@@ -99,24 +109,21 @@ function PlaceDetail({ userId: incomingUserId }) {
     fetchPhotos();
   }, [data?.getSavedPlace?.placeId]);
 
-
   const handleBookmarkToggle = async () => {
-      try {
-          if (isBookmarked) {
-              await removeSavedPlace({ variables: { userId, placeId } });
-              setIsBookmarked(false);
-          } else {
-              await addSavedPlace({ variables: { userId, placeId } });
-              setIsBookmarked(true);
-          }
-      } catch (e) {
-          alert("Failed to update bookmark: " + e.message);
+    try {
+      if (isBookmarked) {
+        await removeSavedPlace({ variables: { userId, placeId } });
+        setIsBookmarked(false);
       }
+      else {
+        await addSavedPlace({ variables: { userId, placeId } });
+        setIsBookmarked(true);
+      }
+    }
+    catch (e) {
+      alert("Failed to update bookmark: " + e.message);
+    }
   };
-
-  if (loading) return <div className="container mt-5"><p>Loading...</p></div>;
-  if (error) return <div className="container mt-5"><p>Error loading place</p></div>;
-  if (!data) return null;
 
   const place = data?.getSavedPlace;
   if (!place) {
@@ -132,28 +139,24 @@ function PlaceDetail({ userId: incomingUserId }) {
     );
   }
 
-  // Find friend reviews
   const friends = friendsData?.getFriends || [];
   const friendIds = new Set(friends.map(f => f.id));
   const friendReviews = place.reviews ? place.reviews.filter(r => friendIds.has(r.userId)) : [];
-
-  // Find the user's review
   const myReview = place.reviews ? place.reviews.find(r => r.userId === userId) : null;
-
 
   // convert file to base64
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 5000000) { // Limit to 5MB
+    if (file.size > 5000000) {
       setUploadError("File is too large (Max 5MB)");
       return;
     }
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setReviewImage(reader.result); // Base64 string
+      setReviewImage(reader.result);
       setUploadError(null);
     };
     reader.readAsDataURL(file);
@@ -170,32 +173,89 @@ function PlaceDetail({ userId: incomingUserId }) {
     }
 
     try {
-      await createReview({
+      const result = await createReview({
         variables: {
           userId: userId,
           placeId: place.id,
           placeName: place.name,
-          rating: parseInt(reviewForm.rating),
+              rating: parseFloat(reviewForm.rating),
           notes: reviewForm.notes,
           photos: reviewImage ? [reviewImage] : []
         }
       });
+
+      const newReviewId = result?.data?.createReview?.id;
+
       setShowModal(false);
       setReviewForm({ rating: 5, notes: '' });
+      setReviewImage(null);
       setValidated(false);
-    } catch (e) {
+
+      if (newReviewId) {
+        try {
+          const { data } = await client.query({
+            query: GET_COMPARISON_CANDIDATES,
+            variables: { userId, reviewId: newReviewId }
+          });
+
+          if (data?.getComparisonCandidates) {
+            setCmpData(data.getComparisonCandidates);
+            setStage('CHOOSE_CLOSER');
+            setChosenCandidate(null);
+            setCmpVisible(true);
+          }
+        }
+        catch (e) {
+          console.error('Comparison error:', e);
+        }
+      }
+      else {
+        console.log('Skipped Comparison');
+      }
+    }
+    catch (e) {
+      console.error('Submit error:', e);
       alert("Error submitting review: " + e.message);
     }
   };
 
   const handleDeleteReview = async () => {
     try {
-      //console.log("Deleting Review with:", { userId, reviewId: myReview.id });
       await deleteReview({ variables: { userId: userId, reviewId: myReview.id } });
       setShowDeleteModal(false);
-    } catch (e) {
+    }
+    catch (e) {
       console.error("Delete failed:", e);
       alert("Error deleting review: " + e.message);
+    }
+  };
+
+  const handleChooseCloser = (candidateNumber) => {
+    const chosen = candidateNumber === 1 ? cmpData.candidate1 : cmpData.candidate2;
+    setChosenCandidate(chosen);
+    setStage('BETTER_OR_WORSE');
+  };
+
+  const handleBetterOrWorse = async (answer) => {
+    try {
+      const result = await finalizeRating({
+        variables: {
+          reviewId: cmpData.newReviewId,
+          chosenRating: chosenCandidate.rating,
+          comparison: answer
+        }
+      });
+
+      const finalRatingValue = result?.data?.finalizeComparativeRating;
+      setCmpVisible(false);
+      setCmpData(null);
+      setChosenCandidate(null);
+      setStage('CHOOSE_CLOSER');
+      alert(`Your new rating is ${finalRatingValue.toFixed(1)} stars.`);
+      refetch();
+    }
+    catch (e) {
+      alert('Failed to finalize rating: ' + e.message);
     }
   };
 
@@ -205,11 +265,13 @@ function PlaceDetail({ userId: incomingUserId }) {
     return 'danger';
   };
 
+  if (loading) return <div className="container mt-5"><p>Loading...</p></div>;
+  if (error) return <div className="container mt-5"><p>Error loading place</p></div>;
+  if (!data) return null;
+
   return (
     <Container className="place-detail-container">
       <Card className="place-card">
-
-        {/* header area */}
         <Card.Header className="place-header">
           <div className="place-header-content">
             <div className="place-info">
@@ -226,7 +288,6 @@ function PlaceDetail({ userId: incomingUserId }) {
               )}
             </div>
 
-            {/* bookmark button */}
             <Button
               variant={isBookmarked ? "success" : "outline-secondary"}
               onClick={handleBookmarkToggle}
@@ -239,7 +300,6 @@ function PlaceDetail({ userId: incomingUserId }) {
               )}
             </Button>
 
-            {/* ratings, showing google and overall users */}
             <div className="d-flex gap-4">
               <div className="place-rating-block">
                 <Badge bg={getRatingColor(place.rating)} className="rating-badge main-rating">
@@ -257,7 +317,6 @@ function PlaceDetail({ userId: incomingUserId }) {
             </div>
           </div>
 
-          {/* tags */}
           {place.types && place.types.length > 0 && (
             <div className="place-tags">
               {place.types.map(t => (
@@ -271,39 +330,35 @@ function PlaceDetail({ userId: incomingUserId }) {
 
         {/* body */}
         <Card.Body className="place-body">
-
           {place.description && (
             <div className="place-description-section">
               <p className="place-description">{place.description}</p>
             </div>
           )}
 
-            {/* photos from the API */}
-            {place.photos && place.photos.length > 0 && (
-                <div className="photos-grid">
-                  {place.photos.slice(0, 3).map((photo, index) => (
-                      <div key={index} className="photo-wrapper">
-                          <img src={photo} alt={place.name} className="place-photo" />
-                      </div>
-                  ))}
+          {place.photos && place.photos.length > 0 && (
+            <div className="photos-grid">
+              {place.photos.slice(0, 3).map((photo, index) => (
+                <div key={index} className="photo-wrapper">
+                  <img src={photo} alt={place.name} className="place-photo" />
                 </div>
-            )}
-            {/* user actions */}
-            <div className="action-buttons">
-                {!myReview ? (
-                    <Button variant="primary" onClick={() => setShowModal(true)} className="btn-action">
-                        Write a Review
-                    </Button>
-                ) : (
-                  <Button variant="outline-danger" onClick={() => setShowDeleteModal(true)} className="btn-action">
-                        Delete My Review
-                    </Button>
-                )}
+              ))}
             </div>
+          )}
+          <div className="action-buttons">
+            {!myReview ? (
+              <Button variant="primary" onClick={() => setShowModal(true)} className="btn-action">
+                Write a Review
+              </Button>
+            ) : (
+              <Button variant="outline-danger" onClick={() => setShowDeleteModal(true)} className="btn-action">
+                Delete My Review
+              </Button>
+            )}
+          </div>
 
           <hr className="section-divider" />
 
-          {/* friend reviews */}
           <div className="friends-activity-section">
             <h4 className="section-title">Friends' Activity</h4>
             {friendReviews.length > 0 ? (
@@ -323,7 +378,6 @@ function PlaceDetail({ userId: incomingUserId }) {
             )}
           </div>
 
-          {/* all reviews */}
           <div className="all-reviews-section">
             <h4 className="section-title">All Reviews ({place.reviews?.length || 0})</h4>
             {place.reviews && place.reviews.length > 0 ? (
@@ -337,7 +391,7 @@ function PlaceDetail({ userId: incomingUserId }) {
                             ★ {Number(r.rating).toFixed(1)}
                           </Badge>
                           <span className="fw-bold">
-                            {r.username || "User"} {/* Shows Username now */}
+                            {r.username || "User"}
                           </span>
                         </div>
                         <small className="review-date">
@@ -347,7 +401,6 @@ function PlaceDetail({ userId: incomingUserId }) {
                       <Card.Text className="review-content">
                         {r.notes || <em className="no-notes">No written review provided.</em>}
 
-                        {/* photo in a user's review */}
                         {r.photos && r.photos.length > 0 && (
                           <div className="mt-3">
                             <img
@@ -404,7 +457,6 @@ function PlaceDetail({ userId: incomingUserId }) {
               />
             </Form.Group>
 
-            {/* image upload field */}
             <Form.Group className="mb-3">
               <Form.Label>Attach a Photo</Form.Label>
               <Form.Control
@@ -420,7 +472,6 @@ function PlaceDetail({ userId: incomingUserId }) {
                 </div>
               )}
             </Form.Group>
-
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
@@ -446,7 +497,135 @@ function PlaceDetail({ userId: incomingUserId }) {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/*Comparison Modal */}
+      <Modal
+        show={cmpVisible}
+        onHide={() => setCmpVisible(false)}
+        centered
+        backdrop="static"
+        keyboard={false}
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-arrows-angle-expand me-2"></i>
+            Refine Your Rating
+          </Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body>
+          {/*Choose review */}
+          {stage === 'CHOOSE_CLOSER' && cmpData && (
+            <div>
+              <Alert variant="info" className="mb-4">
+                <i className="bi bi-info-circle me-2"></i>
+                  Step 1 of 2: Which of these places did you enjoy the most compared to {place.name}?
+              </Alert>
+
+              <div className="row g-3">
+                {/* Candidate 1 */}
+                <div className="col-md-6">
+                  <Card
+                    className="comparison-card h-100 cursor-pointer hover-shadow"
+                    onClick={() => handleChooseCloser(1)}
+                    style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                  >
+                    <Card.Body className="text-center p-4">
+                      <Badge bg="primary" className="mb-3 rating-badge">
+                        ★ {cmpData.candidate1.rating.toFixed(1)}
+                      </Badge>
+                      <h5 className="mb-2">{cmpData.candidate1.placeName}</h5>
+                      <Button variant="outline-primary" size="sm" className="mt-2">
+                        Select This One
+                      </Button>
+                    </Card.Body>
+                  </Card>
+                </div>
+
+                {/* Candidate 2 */}
+                <div className="col-md-6">
+                  <Card
+                    className="comparison-card h-100 cursor-pointer hover-shadow"
+                    onClick={() => handleChooseCloser(2)}
+                    style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                  >
+                    <Card.Body className="text-center p-4">
+                      <Badge bg="primary" className="mb-3 rating-badge">
+                        ★ {cmpData.candidate2.rating.toFixed(1)}
+                      </Badge>
+                      <h5 className="mb-2">{cmpData.candidate2.placeName}</h5>
+                      <Button variant="outline-primary" size="sm" className="mt-2">
+                        Select This One
+                      </Button>
+                    </Card.Body>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Better or worse than chosen review */}
+          {stage === 'BETTER_OR_WORSE' && chosenCandidate && (
+            <div>
+              <Alert variant="success" className="mb-4">
+                <i className="bi bi-check-circle me-2"></i>
+                  Step 2 of 2: Now compare to your selected place
+              </Alert>
+
+              <Card className="mb-4 bg-light">
+                <Card.Body className="text-center p-4">
+                  <h5 className="mb-2">{chosenCandidate.placeName}</h5>
+                  <Badge bg="primary" className="rating-badge">
+                    ★ {chosenCandidate.rating.toFixed(1)}
+                  </Badge>
+                </Card.Body>
+              </Card>
+
+              <p className="text-center fw-semibold mb-4">
+                Did you enjoy {place.name} more, less, or about the same?
+              </p>
+
+              <div className="d-grid gap-3">
+                <Button
+                  variant="danger"
+                  size="lg"
+                  onClick={() => handleBetterOrWorse('WORSE')}
+                >
+                  <i className="bi bi-arrow-down-circle me-2"></i>
+                  I Enjoyed It Less
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => handleBetterOrWorse('SAME')}
+                >
+                  <i className="bi bi-dash-circle me-2"></i>
+                  About the Same
+                </Button>
+
+                <Button
+                  variant="success"
+                  size="lg"
+                  onClick={() => handleBetterOrWorse('BETTER')}
+                >
+                  <i className="bi bi-arrow-up-circle me-2"></i>
+                  I Enjoyed It More
+                </Button>
+              </div>
+
+              <Alert variant="light" className="mt-4 mb-0 text-center">
+                <small className="text-muted">
+                  Better: +0.5 stars | Same: Equal rating | Worse: -0.5 stars
+                </small>
+              </Alert>
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
     </Container>
   );
 }
+
 export default PlaceDetail;

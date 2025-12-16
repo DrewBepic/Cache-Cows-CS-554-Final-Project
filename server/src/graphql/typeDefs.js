@@ -18,7 +18,7 @@ export const typeDefs = `#graphql
         username: String
         placeId: String!
         placeName: String!
-        rating: Int!
+        rating: Float!
         notes: String
         photos: [String]
         createdAt: String!
@@ -92,6 +92,28 @@ export const typeDefs = `#graphql
         city: String
     }
 
+    type ComparisonCandidate {
+        id: ID!
+        placeName: String!
+        rating: Float!
+    }
+
+    type ComparisonCandidates {
+        newReviewId: ID!
+        candidate1: ComparisonCandidate!
+        candidate2: ComparisonCandidate!
+    }
+
+    type ComparisonSession {
+        id: ID!
+        stage: String!
+        status: String!
+        candidate1: ComparisonCandidate
+        candidate2: ComparisonCandidate
+        chosenCandidate: ComparisonCandidate
+        finalRating: Float
+    }
+
 
     type Query {
         getUser(id: ID!): User
@@ -117,6 +139,8 @@ export const typeDefs = `#graphql
         
         getGlobalTopRatedSpots(limit: Int, country: String, city: String): [TopRatedSpot!]!
         getUserAndFriendsTopRatedSpots(userId: ID!, limit: Int, country: String, city: String): [TopRatedSpot!]!
+        getComparisonCandidates(userId: ID!, reviewId: ID!): ComparisonCandidates
+
     }
 
     type Mutation {
@@ -134,12 +158,16 @@ export const typeDefs = `#graphql
         acceptFriendRequest(currentUserId: ID!, friendId: ID!): User!
         rejectFriendRequest(currentUserId: ID!, friendId: ID!): User!
         removeFriend(currentUserId: ID!, friendId: ID!): User!
+        finalizeComparativeRating(reviewId: ID!, chosenRating: Float!, comparison: String!): Float!
+        answerBetterOrWorse(sessionId: ID!, answer: String!): ComparisonSession!
+        startReviewComparison(userId: ID!, newReviewId: ID!): ComparisonSession
+        chooseCloserReview(sessionId: ID!, candidateNumber: Int!): ComparisonSession!
 
         createReview(
             userId: ID!
             placeId: String!
             placeName: String!
-            rating: Int!
+            rating: Float!
             notes: String
             photos: [String]
         ): Review!
@@ -174,3 +202,4 @@ export const typeDefs = `#graphql
         importGooglePlace(googlePlaceId: String!): SavedPlace!
     }
 `;
+

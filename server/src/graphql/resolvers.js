@@ -5,6 +5,7 @@ import * as reviewFunctions from '../db_functions/reviews.js';
 import * as friendFunctions from '../db_functions/friends.js';
 import * as topspotFunctions from '../db_functions/topspots.js';
 import * as placeFunctions from '../db_functions/places.js';
+import { getComparisonCandidates, finalizeComparativeRating } from '../db_functions/reviews.js';
 import { setCache, getFromCache, deletekeywithPattern } from '../config/redishelper.js';
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
@@ -150,7 +151,7 @@ export const resolvers = {
 
                 const usersCol = await users();
                 const reviewsWithUsernames = [];
-                
+
                 for (const review of recentReviews) {
                     const user = await usersCol.findOne({ _id: review.user_id });
                     reviewsWithUsernames.push({
@@ -268,6 +269,13 @@ export const resolvers = {
                 throw new Error(`Error fetching user and friends top rated spots: ${error.message}`);
             }
         },
+        getComparisonCandidates: async (_, { userId, reviewId }) => {
+            try {
+                return await getComparisonCandidates(userId, reviewId);
+            } catch (error) {
+                throw new Error(`Failed to get candidates: ${error.message}`);
+            }
+        },
     },
     Mutation: {
         createUser: async (_, { username, firstName, lastName, password }) => {
@@ -294,6 +302,32 @@ export const resolvers = {
             }
             if (password.length > 30) {
                 throw new Error('Password cannot exceed 30 characters');
+            }
+
+            let hasLowercase = false;
+            let hasUppercase = false;
+            let hasDigit = false;
+            let hasSymbol = false;
+
+            for (let i = 0; i < password.length; i++) {
+                const charCode = password.charCodeAt(i);
+
+                if (charCode >= 97 && charCode <= 122) {
+                    hasLowercase = true;
+                }
+                else if (charCode >= 65 && charCode <= 90) {
+                    hasUppercase = true;
+                }
+                else if (charCode >= 48 && charCode <= 57) {
+                    hasDigit = true;
+                }
+                else {
+                    hasSymbol = true;
+                }
+            }
+
+            if (!hasLowercase || !hasUppercase || !hasDigit || !hasSymbol) {
+                throw new Error('Password must include at least one uppercase letter, one lowercase letter, one number, and one symbol');
             }
             const cleanUsername = username.toLowerCase().trim();
             const user = await userFunctions.createUser({
@@ -431,7 +465,7 @@ export const resolvers = {
                 const review = await reviewFunctions.createReview(userId, cleanPlaceId, placeName.trim(), rating, notes?.trim(), photos);
                 await placeFunctions.addReviewToPlace(cleanPlaceId, review._id.toString());
                 if (review) {
-                    await deletekeywithPattern('topspots:*'); 
+                    await deletekeywithPattern('topspots:*');
                     await client.del(`place:${cleanPlaceId}`);
                 }
                 return convertReview(review);
@@ -490,9 +524,14 @@ export const resolvers = {
             } catch (e) {
                 throw new Error(e.message);
             }
+        },
+        finalizeComparativeRating: async (_, { reviewId, chosenRating, comparison }) => {
+            try {
+                return await finalizeComparativeRating(reviewId, chosenRating, comparison);
+            } catch (error) {
+                throw new Error(`Failed to finalize rating: ${error.message}`);
+            }
         }
-
-
     },
     //Field resolvers
     User: {

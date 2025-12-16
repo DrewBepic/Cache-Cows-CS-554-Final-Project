@@ -160,7 +160,7 @@ export const REMOVE_FRIEND = gql`
 `;
 
 export const CREATE_REVIEW = gql`
-  mutation CreateReview($userId: ID!, $placeId: String!, $placeName: String!, $rating: Int!, $notes: String, $photos: [String]) {
+  mutation CreateReview($userId: ID!, $placeId: String!, $placeName: String!, $rating: Float!, $notes: String, $photos: [String]) {
     createReview(userId: $userId, placeId: $placeId, placeName: $placeName, rating: $rating, notes: $notes, photos: $photos) {
       id
       placeId
@@ -297,4 +297,28 @@ export const GET_FRIENDS_TOP_SPOTS = gql`
       country
     }
   }
+`;
+
+export const GET_COMPARISON_CANDIDATES = gql`
+    query GetComparisonCandidates($userId: ID!, $reviewId: ID!) {
+        getComparisonCandidates(userId: $userId, reviewId: $reviewId) {
+            newReviewId
+            candidate1 {
+                id
+                placeName
+                rating
+            }
+            candidate2 {
+                id
+                placeName
+                rating
+            }
+        }
+    }
+`;
+
+export const FINALIZE_COMPARATIVE_RATING = gql`
+    mutation FinalizeComparativeRating($reviewId: ID!, $chosenRating: Float!, $comparison: String!) {
+        finalizeComparativeRating(reviewId: $reviewId, chosenRating: $chosenRating, comparison: $comparison)
+    }
 `;

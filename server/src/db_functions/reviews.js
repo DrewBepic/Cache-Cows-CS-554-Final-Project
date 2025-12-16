@@ -1,6 +1,7 @@
-import { reviews, users } from '../db_config/mongoCollections.js';
+import { reviews, users, comparisonSessions } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
 import { deletekeywithPattern } from '../config/redishelper.js';
+
 
 export const createReview = async (userId, placeId, placeName, rating, notes, photos = []) => {
     if (rating < 1 || rating > 5) {
@@ -12,7 +13,6 @@ export const createReview = async (userId, placeId, placeName, rating, notes, ph
     if (!userExists) {
         throw new Error("User not found - Cannot create review");
     }
-
     const newReview = {
         user_id: new ObjectId(userId),
         place_id: placeId,
@@ -20,26 +20,28 @@ export const createReview = async (userId, placeId, placeName, rating, notes, ph
         rating: rating,
         notes: notes || '',
         photos: photos,
-        createdAt: new Date()
+        createdAt: new Date(),
+        finalRating: null,
     };
     const reviewsCollection = await reviews();
     const insertResult = await reviewsCollection.insertOne(newReview);
     newReview._id = insertResult.insertedId.toString();
-    //since we gotta also add reviewID to user's reviews array
-    await usersCollection.updateOne({ _id: new ObjectId(userId) }, { $addToSet: { reviews: new ObjectId(newReview._id) } } //store as list of objectids
-    );
+
+    await usersCollection.updateOne({ _id: new ObjectId(userId) }, { $addToSet: { reviews: new ObjectId(newReview._id) } });
     await deletekeywithPattern('topspots:*');
     return newReview;
 };
+
 export const getReviewsByUserId = async (userId) => {
     const reviewsCollection = await reviews();
     return await reviewsCollection.find({ user_id: new ObjectId(userId) }).toArray();
 };
-//used string id since we dont store in our db
+
 export const getReviewsByPlaceId = async (placeId) => {
     const reviewsCollection = await reviews();
     return await reviewsCollection.find({ place_id: placeId }).toArray();
 };
+
 export const deleteReview = async (userId, reviewId) => {
     const reviewsCollection = await reviews();
     const review = await reviewsCollection.findOne({
@@ -49,14 +51,117 @@ export const deleteReview = async (userId, reviewId) => {
     if (!review) {
         throw new Error('Review not found or you do not have permission to delete it');
     }
-    // Delete the review
+
     const result = await reviewsCollection.deleteOne({ _id: new ObjectId(reviewId) });
-    // Remove review ID from user's reviews array
+
     if (result.deletedCount > 0) {
         const usersCollection = await users();
-        await usersCollection.updateOne({ _id: review.user_id }, //since its stored as objectId
-        { $pull: { reviews: new ObjectId(reviewId) } });
+        await usersCollection.updateOne(
+            { _id: review.user_id },
+            { $pull: { reviews: new ObjectId(reviewId) } }
+        );
     }
     await deletekeywithPattern('topspots:*');
     return result.deletedCount > 0;
+};
+
+export const getComparisonCandidates = async (userId, newReviewId) => {
+    const reviewsCollection = await reviews();
+
+    const newReview = await reviewsCollection.findOne({ _id: new ObjectId(newReviewId) });
+    if (!newReview) {
+        throw new Error('Review not found');
+    }
+
+    const existingReviews = await reviewsCollection
+        .find({
+            user_id: new ObjectId(userId),
+            _id: { $ne: new ObjectId(newReviewId) }
+        })
+        .sort({ rating: 1 })
+        .toArray();
+
+    // First review - no comparison needed
+    if (existingReviews.length === 0) {
+        await reviewsCollection.updateOne(
+            { _id: new ObjectId(newReviewId) },
+            { $set: { finalRating: newReview.rating } }
+        );
+        return null;
+    }
+
+    // Find two closest rated reviews
+    let closest1 = null;
+    let closest2 = null;
+    let minDiff = Infinity;
+
+    for (let i = 0; i < existingReviews.length - 1; i++) {
+        const review1 = existingReviews[i];
+        const review2 = existingReviews[i + 1];
+
+        if (review1.rating <= newReview.rating && review2.rating >= newReview.rating) {
+            const diff1 = Math.abs(review1.rating - newReview.rating);
+            const diff2 = Math.abs(review2.rating - newReview.rating);
+            const totalDiff = diff1 + diff2;
+
+            if (totalDiff < minDiff) {
+                minDiff = totalDiff;
+                closest1 = review1;
+                closest2 = review2;
+            }
+        }
+    }
+
+    // If not between any two, find the two closest on one of the sides
+    if (!closest1 || !closest2) {
+        const sorted = existingReviews
+            .map(r => ({
+                ...r,
+                diff: Math.abs(r.rating - newReview.rating)
+            }))
+            .sort((a, b) => a.diff - b.diff);
+
+        closest1 = sorted[0];
+        closest2 = sorted[1] || sorted[0];
+    }
+
+    return {
+        newReviewId: newReviewId,
+        candidate1: {
+            id: closest1._id.toString(),
+            placeName: closest1.place_name,
+            rating: closest1.rating
+        },
+        candidate2: {
+            id: closest2._id.toString(),
+            placeName: closest2.place_name,
+            rating: closest2.rating
+        }
+    };
+};
+
+export const finalizeComparativeRating = async (reviewId, chosenCandidateRating, comparison) => {
+    const reviewsCollection = await reviews();
+
+    let finalRating;
+
+    if (comparison === 'SAME') {
+        finalRating = chosenCandidateRating;
+    }
+    else if (comparison === 'BETTER') {
+        finalRating = Math.min(5, chosenCandidateRating + 0.5);
+    }
+    else if (comparison === 'WORSE') {
+        finalRating = Math.max(1, chosenCandidateRating - 0.5);
+    }
+    else {
+        throw new Error('Invalid comparison. Must be BETTER, WORSE, or SAME');
+    }
+
+    await reviewsCollection.updateOne(
+        { _id: new ObjectId(reviewId) },
+        { $set: { finalRating: finalRating, rating: finalRating } }
+    );
+
+    return finalRating;
 };
