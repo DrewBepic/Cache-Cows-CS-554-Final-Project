@@ -6,7 +6,8 @@ import { GET_SAVED_PLACE, CREATE_REVIEW, DELETE_REVIEW, GET_FRIENDS, GET_USER, G
 import './PlaceDetail.css';
 import axios from 'axios';
 
-function PlaceDetail({ userId }) {
+function PlaceDetail({ userId: incomingUserId }) {
+  const userId = incomingUserId || localStorage.getItem('currentUserId');
   const { placeId } = useParams();
   const [showModal, setShowModal] = useState(false);
   const [reviewForm, setReviewForm] = useState({ rating: 5, notes: '' });
