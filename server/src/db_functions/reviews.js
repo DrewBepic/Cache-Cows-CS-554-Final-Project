@@ -1,5 +1,7 @@
 import { reviews, users } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
+import { deletekeywithPattern } from '../config/redishelper.js';
+
 export const createReview = async (userId, placeId, placeName, rating, notes, photos = []) => {
     if (rating < 1 || rating > 5) {
         throw new Error("Rating must be between 1 and 5");
@@ -26,6 +28,7 @@ export const createReview = async (userId, placeId, placeName, rating, notes, ph
     //since we gotta also add reviewID to user's reviews array
     await usersCollection.updateOne({ _id: new ObjectId(userId) }, { $addToSet: { reviews: new ObjectId(newReview._id) } } //store as list of objectids
     );
+    await deletekeywithPattern('topspots:*');
     return newReview;
 };
 export const getReviewsByUserId = async (userId) => {
@@ -54,5 +57,6 @@ export const deleteReview = async (userId, reviewId) => {
         await usersCollection.updateOne({ _id: review.user_id }, //since its stored as objectId
         { $pull: { reviews: new ObjectId(reviewId) } });
     }
+    await deletekeywithPattern('topspots:*');
     return result.deletedCount > 0;
 };
