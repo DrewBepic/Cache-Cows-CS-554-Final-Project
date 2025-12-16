@@ -26,3 +26,16 @@ export const deletekeywithPattern = async (pattern) => {
         console.error(`Error invalidating:`, error);
     }
 };
+
+export const clearRedis = async () => {
+    try {
+        console.log('Clearing Redis cache...');
+        await client.flushAll();
+        console.log('✅ Redis cache cleared!');
+        
+        // Optional: Show stats
+        
+    } catch (error) {
+        console.error('❌ Failed to clear Redis:', error);
+    }
+};
