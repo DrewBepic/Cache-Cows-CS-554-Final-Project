@@ -55,7 +55,8 @@ function Signup() {
             });
         }
         catch (err) {
-            setError('Signup failed. Please try again.');
+            const errorMessage = err.message || 'Signup failed. Please try again.';
+            setError(errorMessage);
         }
     };
 
