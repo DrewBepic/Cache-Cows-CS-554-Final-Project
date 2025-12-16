@@ -16,6 +16,7 @@ function PlaceDetail({ userId: incomingUserId }) {
   const [uploadError, setUploadError] = useState(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [placePhotos, setPlacePhotos] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
 
   if (!userId) {
@@ -188,13 +189,10 @@ function PlaceDetail({ userId: incomingUserId }) {
   };
 
   const handleDeleteReview = async () => {
-    if(!window.confirm("Are you sure you want to delete your review?")) return;
     try {
-      console.log("Deleting Review with:", { userId, reviewId: myReview.id }); 
-
-      await deleteReview({
-        variables: { userId: userId, reviewId: myReview.id }
-      });
+      //console.log("Deleting Review with:", { userId, reviewId: myReview.id });
+      await deleteReview({ variables: { userId: userId, reviewId: myReview.id } });
+      setShowDeleteModal(false);
     } catch (e) {
       console.error("Delete failed:", e);
       alert("Error deleting review: " + e.message);
@@ -297,7 +295,7 @@ function PlaceDetail({ userId: incomingUserId }) {
                         Write a Review
                     </Button>
                 ) : (
-                    <Button variant="outline-danger" onClick={handleDeleteReview} className="btn-action">
+                  <Button variant="outline-danger" onClick={() => setShowDeleteModal(true)} className="btn-action">
                         Delete My Review
                     </Button>
                 )}
@@ -429,6 +427,24 @@ function PlaceDetail({ userId: incomingUserId }) {
             <Button type="submit" variant="primary">Submit Review</Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+
+      {/* delete modal */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Delete Your Review</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Are you sure you want to delete your review? This action cannot be undone.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDeleteReview}>
+            Delete
+          </Button>
+        </Modal.Footer>
       </Modal>
     </Container>
   );
