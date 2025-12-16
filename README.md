@@ -1,163 +1,97 @@
 # Cache-Cows-CS554-Final-Project
-Cache Cows CS554 Final Project
 
-## Installation Steps for Elasticsearch
-
-### 1. Install Elasticsearch Server
-
-Add the Elasticsearch tap to Homebrew:
-```bash
-brew tap elastic/tap
-```
-
-Install Elasticsearch 7.17.4:
-```bash
-brew install elastic/tap/elasticsearch-full@7.17.4
-```
-
-### 2. Install Project Dependencies
-
-Navigate to your project directory and install required packages:
-```bash
-npm install
-npm install @elastic/elasticsearch
-```
-
-### 3. Start Elasticsearch Server
-
-Run your Elasticsearch server on your computer:
-
-```bash
-brew services start elasticsearch-full
-```
-
-**OR** alternative way if brew doesn't start it:
-
-```bash
-/opt/homebrew/Cellar/elasticsearch-full/7.17.4/libexec/bin/elasticsearch -E xpack.ml.enabled=false
-```
-
-> **Note:** These are commands for macOS. The path may vary on your system. Please search for the appropriate Elasticsearch installation path for your operating system.
-
-### 4. Verify Elasticsearch is Running
-
-Test if Elasticsearch server is running by checking the cities index:
-
-```bash
-curl http://localhost:9200/cities/_count
-```
-
-#### Expected Responses:
-
-**Before indexing (Elasticsearch is running correctly):**
-```json
-{
-  "error": {
-    "root_cause": [
-      {
-        "type": "index_not_found_exception",
-        "reason": "no such index [cities]",
-        "resource.type": "index_or_alias",
-        "resource.id": "cities",
-        "index_uuid": "_na_",
-        "index": "cities"
-      }
-    ],
-    "type": "index_not_found_exception",
-    "reason": "no such index [cities]",
-    "resource.type": "index_or_alias",
-    "resource.id": "cities",
-    "index_uuid": "_na_",
-    "index": "cities"
-  },
-  "status": 404
-}
-```
-
-**After indexing (ready to use):**
-```json
-{
-  "count": 162981,
-  "_shards": {
-    "total": 1,
-    "successful": 1,
-    "skipped": 0,
-    "failed": 0
-  }
-}
-```
-
-### 5. Index Cities Data
-
-Seeding file should automatically indexing cities
-
-```bash
-node ./server/src/tests/test.js
-```
-
-If you haven't indexed yet and want to manually indexing cities, run the indexing script:
-
-```bash
-node ./server/src/tests/runindexing.js
-```
-
-#### Expected Output:
-```
-Starting city indexing...
-Success Created cities index
-Successfully indexed 162981 cities
-Success Indexed 162981 cities
-✅ City indexing completed!
-```
-
-### 6. You're Ready!
-
-After successful indexing, your Elasticsearch server is ready for searching. You can now use the search cities feature in the application.
+A social travel recommendation platform where users can discover, review, and share places with friends.
 
 ---
 
-## Quick Start Summary
+## 🚀 Setup Instructions
+
+### 1. Install Required Services
+
+**Elasticsearch 7.17.4:**
+```bash
+brew tap elastic/tap
+brew install elastic/tap/elasticsearch-full@7.17.4
+```
+
+**ImageMagick:**
+```bash
+brew install imagemagick
+```
+
+### 2. Start Elasticsearch Server
 
 ```bash
-# 1. Start Elasticsearch
 brew services start elasticsearch-full
+```
 
-# 2. Verify it's running
-curl http://localhost:9200/cities/_count
+**Verify Elasticsearch is running:**
+```bash
+curl http://localhost:9200
+```
 
-# 3. Index cities (first time only)
-node ./server/src/tests/runindexing.js
+[Manual start & troubleshooting guide →](#elasticsearch-setup-details)
 
-# 4. Start your application
+### 3. Add `.env` File
+
+Create a `.env` file in the **project root** with your Google Maps API key:
+
+```env
+VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
+```
+
+### 4. Install Dependencies & Seed Database
+
+```bash
+npm install
+node ./server/src/tests/test.js
+```
+
+### 5. Start the Application
+
+```bash
 npm start
 ```
 
-## Troubleshooting
+### 6. Open in Browser
 
-- **Elasticsearch won't start**: Check if port 9200 is already in use
-- **Index not found error persists**: Make sure you ran the indexing script
-- **Path errors**: Update the Elasticsearch path to match your installation directory
-
-## Additional Commands
-
-### Stop Elasticsearch
-```bash
-brew services stop elasticsearch-full
+```
+http://localhost:5173/
 ```
 
-### Restart Elasticsearch
-```bash
-brew services restart elasticsearch-full
-```
+---
 
-### Check Elasticsearch Status
-```bash
-brew services list | grep elasticsearch
-```
+## 📖 Elasticsearch Setup Details
 
-### Clear Elasticsearch Index (if needed)
+### Manual Start (Alternative)
 ```bash
-curl -X DELETE http://localhost:9200/cities
+/opt/homebrew/Cellar/elasticsearch-full/7.17.4/libexec/bin/elasticsearch -E xpack.ml.enabled=false
 ```
+> Note: Path may vary on your system.
 
-Then re-run the indexing script to rebuild the index.
+### Verify Elasticsearch is Working
+
+**Before indexing:**
+```bash
+curl http://localhost:9200/cities/_count
+```
+Should return: `"status": 404` (index not found - this is correct)
+
+**After running seed file:**
+```bash
+curl http://localhost:9200/cities/_count
+```
+Should return: `"count": 162981` (cities indexed successfully)
+
+---
+
+## Tech Stack
+
+- **Frontend:** React + Apollo Client
+- **Backend:** Node.js + Express + Apollo Server
+- **Database:** MongoDB
+- **Cache:** Redis
+- **Search:** Elasticsearch
+- **API:** Google Maps Places API
+
+---
