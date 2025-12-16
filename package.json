@@ -2,7 +2,7 @@
   "name": "tripli",
   "private": true,
   "version": "1.0.0",
-  "description": "",
+  "description": "A social travel recommendation platform",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -10,10 +10,10 @@
     "build": "vite build --root tripli",
     "preview": "vite preview --root tripli",
     "lint": "eslint .",
-    "test:db": "tsx server/src/tests/testDB.ts",
-    "test:graphql": "tsx server/src/tests/testGraphQL.ts",
     "server": "node server/src/server.js",
-    "start": "concurrently \"npm run server\" \"npm run dev\""
+    "start": "concurrently \"npm run server\" \"npm run dev\"",
+    "seed": "node server/src/tests/test.js",
+    "index-cities": "node server/src/tests/runindexing.js"
   },
   "keywords": [],
   "author": "",
@@ -48,11 +48,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.5",
-    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "concurrently": "^8.2.2",
     "eslint": "^9.39.1",
@@ -60,10 +55,6 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "nodemon": "^3.1.11",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "uuid": "^9.0.1",
     "vite": "^7.2.4"
   }
 }
