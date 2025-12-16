@@ -30,41 +30,33 @@ const fetchGooglePlaceDetails = async (googlePlaceId) => {
     }
 };
 const fetchAndConvertGooglePhotoBase64 = async (photoReference, placeId, index) => {
-    const width = 1500
+    const width = 800
     const height = 600
     try {
 
         const apiKey = process.env.VITE_GOOGLE_MAPS_API_KEY;
         const url = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1600&photoreference=${photoReference}&key=${apiKey}`;
 
-        // Fetch image as arraybuffer
         const response = await axios.get(url, { responseType: 'arraybuffer' });
         const buffer = Buffer.from(response.data, 'binary');
-
-        // Ensure place-specific folder exists
         const placeDir = path.join(path.resolve(process.cwd(), 'server', 'src', 'photos'), placeId);
         if (!fs.existsSync(placeDir)) fs.mkdirSync(placeDir, { recursive: true });
 
-        // Temporary path to store raw image
         const tempPath = path.join(placeDir, `${index}-temp.jpg`);
         fs.writeFileSync(tempPath, buffer);
-
-        // Final processed path
         const finalPath = path.join(placeDir, `${index}.jpg`);
 
-        // Process the image with ImageMagick (convert and resize)
         await new Promise((resolve, reject) => {
             exec(
                 `magick convert "${tempPath}" -resize ${width}x${height} -quality 80 "${finalPath}"`,
                 (err) => {
                     if (err) return reject(err);
-                    fs.unlinkSync(tempPath); // delete temp file
+                    fs.unlinkSync(tempPath);
                     resolve();
                 }
             );
         });
 
-        // Read processed file and convert to base64
         const processedBuffer = fs.readFileSync(finalPath);
         const base64Image = processedBuffer.toString('base64');
 

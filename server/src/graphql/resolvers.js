@@ -170,7 +170,7 @@ export const resolvers = {
             }
             const places = await userFunctions.getSavedPlaces(userId);
             return places.map(convertSavedPlace);
-        }, 
+        },
         getSavedPlace: async (_, { placeId }) => {
             if (!isValidObjectId(placeId)) return null;
 
@@ -271,11 +271,29 @@ export const resolvers = {
     },
     Mutation: {
         createUser: async (_, { username, firstName, lastName, password }) => {
+            if (!username || !firstName || !lastName || !password) {
+                throw new Error('All fields are required');
+            }
             if (!username.trim() || !firstName.trim() || !lastName.trim()) {
                 throw new Error('All fields are required');
             }
+            if (username.trim().length < 3) {
+                throw new Error('Username must be at least 3 characters');
+            }
+            if (username.trim().length > 30) {
+                throw new Error('Username cannot exceed 30 characters');
+            }
+            if (firstName.trim().length < 1 || lastName.trim().length < 1) {
+                throw new Error('First name and last name must be at least 1 character');
+            }
+            if (firstName.trim().length > 30 || lastName.trim().length > 30) {
+                throw new Error('First name and last name cannot exceed 30 characters');
+            }
             if (password.length < 6) {
                 throw new Error('Password must be at least 6 characters');
+            }
+            if (password.length > 30) {
+                throw new Error('Password cannot exceed 30 characters');
             }
             const cleanUsername = username.toLowerCase().trim();
             const user = await userFunctions.createUser({
@@ -284,19 +302,16 @@ export const resolvers = {
                 last_name: lastName.trim(),
                 password: password.trim()
             });
-
             const dbUser = await userFunctions.findUserByUsername(cleanUsername);
             if (dbUser) {
                 await client.set(`user:username:${cleanUsername}`, JSON.stringify(dbUser));
             }
-
             return convertUser(user);
         },
         login: async (_, { username, password }, { session }) => {
             if (!username || !password) {
                 throw new Error('Username and password are required');
             }
-
             const cleanUsername = username.toLowerCase().trim();
             const cacheKey = `user:username:${cleanUsername}`;
             let user;
@@ -393,7 +408,10 @@ export const resolvers = {
             }
         },
         createReview: async (_, { userId, placeId, placeName, rating, notes, photos }) => {
-            if (!isValidObjectId(userId)) {
+            if (!userId || !placeId || !placeName || rating === undefined) {
+                throw new Error('User ID, Place ID, Place Name, and Rating are required');
+            }
+            if (!isValidObjectId(userId.trim())) {
                 throw new Error('Invalid user ID format');
             }
             if (!placeId.trim() || !placeName.trim()) {
@@ -402,10 +420,16 @@ export const resolvers = {
             if (rating < 1 || rating > 5) {
                 throw new Error('Rating must be between 1 and 5');
             }
+            if (notes) {
+                if (typeof notes !== 'string') {
+                    throw new Error('Notes must be a string');
+                }
+                notes = notes.trim();
+            }
             try {
                 const review = await reviewFunctions.createReview(userId, placeId.trim(), placeName.trim(), rating, notes?.trim(), photos);
                 await placeFunctions.addReviewToPlace(placeId, review._id.toString());
-                if(review){
+                if (review) {
                     await deletekeywithPattern('topspots:*'); // Invalidate relevant cache
                     await client.del(`place:${placeId}`);
                 }
@@ -424,7 +448,7 @@ export const resolvers = {
                 if (success) {
                     await deletekeywithPattern('topspots:*');
                 }
-        
+
                 return success;
             }
             catch (error) {
@@ -516,62 +540,5 @@ export const resolvers = {
             const requests = await usersCollection.find({ _id: { $in: requestIds } }).toArray();
             return requests.map(convertUser);
         }
-    }}
-//     ,SavedPlace: {
-//         reviews: async (parent) => {
-//             if (!parent.reviews || parent.reviews.length === 0) {
-//                 return [];
-//             }
-
-//             if (parent.reviews[0].rating !== undefined) {
-//                 return parent.reviews;
-//             }
-
-//             try {
-//                 const reviewsCollection = await reviewsCol();
-//                 const reviewIds = parent.reviews.map(id => new ObjectId(id));
-//                 const reviewDocs = await reviewsCollection.find({ _id: { $in: reviewIds } }).toArray();
-//                 return reviewDocs.map(convertReview);
-//             } catch (e) {
-//                 console.error(e);
-//                 return [];
-//             }
-//         },
-//         tripliRating: async (parent) => {
-//             // If no reviews, return null or 0
-//             if (!parent.reviews || parent.reviews.length === 0) return 0;
-
-//             // Fetch the reviews to calculate average
-//             const reviewsCollection = await reviewsCol();
-//             // Handle if parent.reviews is IDs or Objects
-//             let reviewIds = [];
-//             if (typeof parent.reviews[0] === 'string' || parent.reviews[0] instanceof ObjectId) {
-//                  reviewIds = parent.reviews.map(id => new ObjectId(id));
-//             } else if (parent.reviews[0]._id) {
-//                  reviewIds = parent.reviews.map(r => new ObjectId(r._id));
-//             }
-
-//             if (reviewIds.length === 0) return 0;
-
-//             const reviewDocs = await reviewsCollection.find({ _id: { $in: reviewIds } }).toArray();
-            
-//             if (reviewDocs.length === 0) return 0;
-
-//             // Calculate Average
-//             const total = reviewDocs.reduce((acc, curr) => acc + curr.rating, 0);
-//             return (total / reviewDocs.length).toFixed(1);
-//         }
-//     },
-//     Review: {
-//         username: async (parent) => {
-//             if (parent.username) return parent.username;
-//             try {
-//                 const user = await userFunctions.findUserById(parent.userId);
-//                 return user ? user.username : "Unknown User";
-//             } catch (e) {
-//                 return "Unknown User";
-//             }
-//         }
-//     },
-
-// };
+    }
+}
