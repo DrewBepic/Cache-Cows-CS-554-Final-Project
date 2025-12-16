@@ -264,7 +264,6 @@ return (
                   ))}
                 </div>
             )}
-
             {/* user actions */}
             <div className="action-buttons">
                 {!myReview ? (
