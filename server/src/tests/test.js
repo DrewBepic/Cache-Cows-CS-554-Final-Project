@@ -2,9 +2,9 @@ import { createUser } from '../db_functions/users.js';
 import { sendFriendRequest, acceptFriendRequest } from '../db_functions/friends.js';
 import { createReview } from '../db_functions/reviews.js';
 import { users, reviews, places } from '../db_config/mongoCollections.js';
-import {clearRedis} from '../config/redishelper.js'
+import { clearRedis } from '../config/redishelper.js'
 import { ObjectId } from 'mongodb';
-
+import { getOrImportPlace } from '../db_functions/places.js';
 const USERS = {
     alice: {
         username: 'alice_wonder',
@@ -211,25 +211,20 @@ const populateData = async () => {
         }
 
         // Create places
-        console.log('\n Creating places...');
+        console.log('\n📍 Creating places...');
         const placeMap = {};
+
 
         for (const key of Object.keys(PLACES)) {
             const placeData = PLACES[key];
 
-            // Insert directly into places collection
-            const result = await placesCollection.insertOne({
-                ...placeData,
-                reviews: [],
-                createdAt: new Date()
-            });
+            // Use the getOrImportPlace function
+            const importedPlace = await getOrImportPlace(placeData.place_id);
+            placeMap[key] = importedPlace;
 
-            const insertedPlace = await placesCollection.findOne({ _id: result.insertedId });
-            placeMap[key] = insertedPlace;
-
-            console.log(`✅ Success Place created: ${insertedPlace.name}`);
-            console.log(`MongoDB _id: ${insertedPlace._id}`);
-            console.log(`Google place_id: ${insertedPlace.place_id}`);
+            console.log(`✅ Place created: ${importedPlace.name}`);
+            console.log(`    MongoDB _id: ${importedPlace._id}`);
+            console.log(`    Google place_id: ${importedPlace.place_id}`);
         }
 
         // Create reviews
