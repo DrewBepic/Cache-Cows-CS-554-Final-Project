@@ -161,6 +161,7 @@ export const finalizeComparativeRating = async (reviewId, chosenCandidateRating,
         { _id: new ObjectId(reviewId) },
         { $set: { finalRating: finalRating, rating: finalRating } }
     );
+    await deletekeywithPattern('topspots:*');
 
     return finalRating;
 };
