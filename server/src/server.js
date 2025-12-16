@@ -9,8 +9,6 @@ import { initializeElasticsearch } from './config/elasticsearch.js';
 import { importCitiesIfEmpty } from './db_functions/import_cities.js';
 import axios from 'axios';
 import 'dotenv/config';
-import fs from 'fs';
-import path from 'path';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -51,18 +49,6 @@ app.use(session({
 }));
 
 app.use('/public', express.static('public'));
-
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const PHOTOS_ROOT = path.join(__dirname, 'photos');
-
-console.log('Serving photos from:', PHOTOS_ROOT);
-
-// Serve place photos at http://localhost:4000/photos/<placeId>/<file>
-app.use('/photos', express.static(PHOTOS_ROOT));
 
 const server = new ApolloServer({
     typeDefs,
@@ -109,26 +95,6 @@ app.get('/api/maps/places', async (req, res) => {
     } catch (err) {
         console.error('Error fetching Google Maps places:', err.message);
         res.status(500).json({ error: 'Failed to fetch places' });
-    }
-});
-
-app.get('/api/place/:placeId/photos', async (req, res) => {
-    const { placeId } = req.params;
-    const placePhotosDir = path.join(PHOTOS_ROOT, placeId);
-
-    try {
-        if (!fs.existsSync(placePhotosDir)) {
-            return res.json([]); // No photos yet
-        }
-
-        const files = fs.readdirSync(placePhotosDir)
-            .filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file))
-            .map(file => `/photos/${placeId}/${encodeURIComponent(file)}`);
-
-        res.json(files);
-    } catch (err) {
-        console.error('Error reading place photos:', err);
-        res.status(500).json({ error: 'Failed to load photos' });
     }
 });
 
