@@ -32,7 +32,7 @@ function Navigation({ isLoggedIn, currentUserId, setIsLoggedIn, setCurrentUserId
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
       <div className="container-fluid">
-        <Link className="navbar-brand" to="/">
+        <Link className="navbar-brand" to="/feed">
           Tripli
         </Link>
 
