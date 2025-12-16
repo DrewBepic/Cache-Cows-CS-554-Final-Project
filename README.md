@@ -1,7 +1,7 @@
 # Cache-Cows-CS554-Final-Project
 Cache Cows CS554 Final Project
 
-## Installation Steps
+## Installation Steps for Elasticsearch
 
 ### 1. Install Elasticsearch Server
 
@@ -31,7 +31,7 @@ Run your Elasticsearch server on your computer:
 brew services start elasticsearch-full
 ```
 
-**OR** (if you prefer manual start):
+**OR** alternative way if brew doesn't start it:
 
 ```bash
 /opt/homebrew/Cellar/elasticsearch-full/7.17.4/libexec/bin/elasticsearch -E xpack.ml.enabled=false
@@ -89,7 +89,13 @@ curl http://localhost:9200/cities/_count
 
 ### 5. Index Cities Data
 
-If you haven't indexed yet, run the indexing script:
+Seeding file should automatically indexing cities
+
+```bash
+node ./server/src/tests/test.js
+```
+
+If you haven't indexed yet and want to manually indexing cities, run the indexing script:
 
 ```bash
 node ./server/src/tests/runindexing.js
@@ -97,7 +103,7 @@ node ./server/src/tests/runindexing.js
 
 #### Expected Output:
 ```
-🚀 Starting city indexing...
+Starting city indexing...
 Success Created cities index
 Successfully indexed 162981 cities
 Success Indexed 162981 cities
