@@ -4,6 +4,13 @@ export const createReview = async (userId, placeId, placeName, rating, notes, ph
     if (rating < 1 || rating > 5) {
         throw new Error("Rating must be between 1 and 5");
     }
+
+    const usersCollection = await users();
+    const userExists = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    if (!userExists) {
+        throw new Error("User not found - Cannot create review");
+    }
+
     const newReview = {
         user_id: new ObjectId(userId),
         place_id: placeId,
@@ -17,7 +24,6 @@ export const createReview = async (userId, placeId, placeName, rating, notes, ph
     const insertResult = await reviewsCollection.insertOne(newReview);
     newReview._id = insertResult.insertedId.toString();
     //since we gotta also add reviewID to user's reviews array
-    const usersCollection = await users();
     await usersCollection.updateOne({ _id: new ObjectId(userId) }, { $addToSet: { reviews: new ObjectId(newReview._id) } } //store as list of objectids
     );
     return newReview;

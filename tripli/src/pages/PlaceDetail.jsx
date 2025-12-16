@@ -188,13 +188,16 @@ function PlaceDetail({ userId: incomingUserId }) {
   };
 
   const handleDeleteReview = async () => {
-    if (!window.confirm("Are you sure you want to delete your review?")) return;
+    if(!window.confirm("Are you sure you want to delete your review?")) return;
     try {
+      console.log("Deleting Review with:", { userId, reviewId: myReview.id }); 
+
       await deleteReview({
         variables: { userId: userId, reviewId: myReview.id }
       });
     } catch (e) {
-      alert("Error deleting review");
+      console.error("Delete failed:", e);
+      alert("Error deleting review: " + e.message);
     }
   };
 
