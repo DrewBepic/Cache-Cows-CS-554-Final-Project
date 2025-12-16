@@ -6,6 +6,19 @@ import { GET_USER, GET_USER_REVIEWS, GET_SAVED_PLACES } from '../queries.js';
 
 function UserProfile() {
     const { userId } = useParams();
+    const loggedInUserId = localStorage.getItem('userId');
+    //make sure user is logged in before messing with anything
+    if (!loggedInUserId) {
+        return (
+            <Container className="my-5">
+                <Alert variant="warning">
+                    <Alert.Heading>Log In</Alert.Heading>
+                    <p>You need to be logged in to view profiles.</p>
+                    <Link to="/login">Go to Login</Link>
+                </Alert>
+            </Container>
+        );
+    }
     const [activeTab, setActiveTab] = useState('reviews');
     
     const { loading: userLoading, error: userError, data: userData } = useQuery(
