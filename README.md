@@ -40,11 +40,14 @@ Create a `.env` file in the **project root** with your Google Maps API key:
 VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
 ```
 
-### 4. Install Dependencies & Seed Database
+### 4. Install Dependencies & Seed Database 
 
 ```bash
 npm install
-node ./server/src/tests/test.js
+
+# Seed database (includes indexing cities)
+npm run seed
+
 ```
 
 ### 5. Start the Application
@@ -77,6 +80,12 @@ curl http://localhost:9200/cities/_count
 ```
 Should return: `"status": 404` (index not found - this is correct)
 
+
+**Manual indexing:**
+```
+# Only index cities
+npm run index-cities
+```
 **After running seed file:**
 ```bash
 curl http://localhost:9200/cities/_count
