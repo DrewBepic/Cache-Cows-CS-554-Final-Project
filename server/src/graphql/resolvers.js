@@ -527,7 +527,21 @@ export const resolvers = {
         },
         finalizeComparativeRating: async (_, { reviewId, chosenRating, comparison }) => {
             try {
-                return await finalizeComparativeRating(reviewId, chosenRating, comparison);
+                const reviewsCol = await reviewsCollection();
+                const review = await reviewsCol.findOne({ _id: new ObjectId(reviewId) });
+                if (!review) throw new Error("Review not found");
+                
+                const placeId = review.place_id;
+
+                const newRating = await reviewFunctions.finalizeComparativeRating(reviewId, chosenRating, comparison);
+
+                if (placeId) {
+                    await client.del(`place:${placeId}`);
+                }
+
+                await deletekeywithPattern('topspots:*');
+
+                return newRating;
             } catch (error) {
                 throw new Error(`Failed to finalize rating: ${error.message}`);
             }
