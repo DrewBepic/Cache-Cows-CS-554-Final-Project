@@ -42,6 +42,8 @@ VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
 
 ### 4. Install Dependencies & Seed Database 
 
+Create database `Tripli_DB` with four collections places, cities, users, reviews
+
 ```bash
 npm install
 
@@ -97,10 +99,11 @@ Should return: `"count": 162981` (cities indexed successfully)
 ## Tech Stack
 
 - **Frontend:** React + Apollo Client
-- **Backend:** Node.js + Express + Apollo Server
+- **Backend:** Node.js + GraphQL + Apollo Server
 - **Database:** MongoDB
 - **Cache:** Redis
 - **Search:** Elasticsearch
+- **Image:** ImageMagick
 - **API:** Google Maps Places API
 
 ---
