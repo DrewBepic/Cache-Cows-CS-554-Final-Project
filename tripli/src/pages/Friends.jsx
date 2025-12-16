@@ -536,7 +536,7 @@ function Friends() {
                 <Card.Body>
                     <h1 className="mb-3">Friends Management</h1>
                     <p className="text-muted mb-0">
-                        Managing friends for <strong>{user?.firstName} {user?.lastName}</strong> (@{user?.username})
+                        Managing friends for {user?.firstName} {user?.lastName} (@{user?.username})
                     </p>
                 </Card.Body>
             </Card>

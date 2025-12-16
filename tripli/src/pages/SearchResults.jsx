@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@apollo/client';
 import { SEARCH_CITIES, IMPORT_GOOGLE_PLACE } from '../queries';
 import axios from 'axios';
 import { Button, Card, Spinner, Alert, Badge } from 'react-bootstrap';
-import './SearchResults.css';
+//import './SearchResults.css';
 
 const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -125,7 +125,7 @@ export default function SearchResults() {
                 Search Results{query && ` for "${query}"`}
             </h3>
 
-            {!isValid && <p className="hint-text">Enter at least one character to search.</p>}
+            {!isValid && <p className="search-text">Enter at least one character to search.</p>}
             {loading && <p className="loading-text">Searching...</p>}
             {error && <p className="error-text">Error: {error.message}</p>}
             {isValid && !loading && !error && !cities.length && <p className="empty-text">No cities found.</p>}
@@ -135,7 +135,14 @@ export default function SearchResults() {
                     {cities.map((city, i) => (
                         <div
                             key={`${city.name}-${i}`}
-                            className={`city-item ${selectedCity?.name === city.name ? 'selected' : ''}`}
+                            className={`city-item ${selectedCity &&
+                                selectedCity.name === city.name &&
+                                selectedCity.country === city.country &&
+                                selectedCity.lat === city.lat &&
+                                selectedCity.lng === city.lng
+                                ? 'selected'
+                                : ''
+                            }`}
                             onClick={() => handleCityClick(city)}
                         >
                             <div className="city-header">
