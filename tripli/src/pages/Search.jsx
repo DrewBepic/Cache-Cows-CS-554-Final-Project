@@ -1,9 +1,28 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { 
+  Container, Row, Col, Card, Button, Alert, Spinner, ListGroup, Form,
+  InputGroup, Badge, Tab, Tabs
+} from 'react-bootstrap';
 
 export default function Search() {
     const [term, setTerm] = useState('');
     const navigate = useNavigate();
+
+    // Check if logged in
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+        return (
+            <Container className="my-5">
+                <Alert variant="warning">
+                    <Alert.Heading>Log In</Alert.Heading>
+                    <p>You need to be logged in to perform a search.</p>
+                    <Link to="/login">Go to Login</Link>
+                </Alert>
+            </Container>
+        );
+    }
 
     const handleSubmit = (e) => {
         e.preventDefault();

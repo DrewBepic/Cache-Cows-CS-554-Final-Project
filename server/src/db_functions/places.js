@@ -1,10 +1,11 @@
-import { places, saved_places } from '../db_config/mongoCollections.js';
+import { places } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
 import axios from 'axios';
 import 'dotenv/config'
+import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
+
 
 // Helper to standardize the object
 const normalizePlace = (place) => ({
@@ -28,17 +29,19 @@ const fetchGooglePlaceDetails = async (googlePlaceId) => {
         throw new Error(`Failed to fetch details for ${googlePlaceId}: ${e.message}`);
     }
 };
-
-const fetchAndStoreGooglePhoto = async (photoReference, placeId, index) => {
+const fetchAndConvertGooglePhotoBase64 = async (photoReference, placeId, index) => {
+    const width = 1500
+    const height = 600
     try {
-        const apiKey = process.env.VITE_GOOGLE_MAPS_API_KEY;
-        const url = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photoReference}&key=${apiKey}`;
 
-        // Fetch the image as arraybuffer
+        const apiKey = process.env.VITE_GOOGLE_MAPS_API_KEY;
+        const url = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1600&photoreference=${photoReference}&key=${apiKey}`;
+
+        // Fetch image as arraybuffer
         const response = await axios.get(url, { responseType: 'arraybuffer' });
         const buffer = Buffer.from(response.data, 'binary');
 
-        // Ensure the place-specific folder exists
+        // Ensure place-specific folder exists
         const placeDir = path.join(path.resolve(process.cwd(), 'server', 'src', 'photos'), placeId);
         if (!fs.existsSync(placeDir)) fs.mkdirSync(placeDir, { recursive: true });
 
@@ -46,87 +49,79 @@ const fetchAndStoreGooglePhoto = async (photoReference, placeId, index) => {
         const tempPath = path.join(placeDir, `${index}-temp.jpg`);
         fs.writeFileSync(tempPath, buffer);
 
-        // Final path after ImageMagick processing
+        // Final processed path
         const finalPath = path.join(placeDir, `${index}.jpg`);
 
-        // Process the image with ImageMagick
+        // Process the image with ImageMagick (convert and resize)
         await new Promise((resolve, reject) => {
-            exec(`magick convert "${tempPath}" -quality 80 "${finalPath}"`, (err) => {
-                if (err) return reject(err);
-                fs.unlinkSync(tempPath); // delete temp file
-                resolve();
-            });
+            exec(
+                `magick convert "${tempPath}" -resize ${width}x${height} -quality 80 "${finalPath}"`,
+                (err) => {
+                    if (err) return reject(err);
+                    fs.unlinkSync(tempPath); // delete temp file
+                    resolve();
+                }
+            );
         });
 
-        console.log(`Saved processed image: ${finalPath}`);
-        return `${placeId}/${index}.jpg`; // return relative path
+        // Read processed file and convert to base64
+        const processedBuffer = fs.readFileSync(finalPath);
+        const base64Image = processedBuffer.toString('base64');
+
+        return `data:image/jpeg;base64,${base64Image}`;
     } catch (error) {
-        console.error('Error fetching or saving photo:', error);
+        console.error('Error fetching or converting Google photo to base64:', {
+            placeId,
+            index,
+            width,
+            height,
+            message: error?.message
+        });
         throw error;
     }
 };
 
-
 // Decide whether to import or get a place depending if it already exists in the database
 export const getOrImportPlace = async (googlePlaceId) => {
-    const savedCollection = await saved_places();
-    const cacheCollection = await places();
+    const collection = await places();
 
-    // Check if the place is in saved_places first 
-    const directoryPlace = await savedCollection.findOne({ place_id: googlePlaceId });
-    if (directoryPlace) {
-        console.log(`Found ${googlePlaceId} in Directory (saved_places)`);
-        return normalizePlace(directoryPlace);
+    const existingPlace = await collection.findOne({ place_id: googlePlaceId });
+    if (existingPlace) {
+        return normalizePlace(existingPlace);
     }
 
-    // Check if the place is in places second
-    const cachedPlace = await cacheCollection.findOne({ place_id: googlePlaceId });
-    if (cachedPlace) {
-        console.log(`Found ${googlePlaceId} in Cache (places)`);
-        return normalizePlace(cachedPlace);
-    }
-
-    // if we dont have the place, we need to import it from the API
+    console.log(`Importing ${googlePlaceId} from Google...`);
     const gPlace = await fetchGooglePlaceDetails(googlePlaceId);
 
-    const storedPhotos = [];
-    if (gPlace.photos && gPlace.photos.length > 0) {
-        for (let i = 0; i < Math.min(3, gPlace.photos.length); i++) {
-            const photoReference = gPlace.photos[i].photo_reference;
-            try {
-                const localFile = await fetchAndStoreGooglePhoto(photoReference, gPlace.place_id, i + 1);
-                storedPhotos.push(localFile);
-            } catch (err) {
-                console.error(`Failed to fetch/store photo ${i + 1} for place ${gPlace.place_id}:`, err);
-            }
-        }
-    }
+    const photos = gPlace.photos
+        ? await Promise.all(
+            gPlace.photos
+                .slice(0, 3)
+                .map((p, index) => fetchAndConvertGooglePhotoBase64(p.photo_reference, googlePlaceId, index))
+        )
+        : [];
 
-
-    // Format the data for our schema
     const newPlace = {
         name: gPlace.name,
-        place_id: gPlace.place_id, // The Google ID
+        place_id: gPlace.place_id, // Google ID
         description: gPlace.editorial_summary?.overview || "No description available.",
         address: gPlace.formatted_address,
-        city: gPlace.address_components?.find(c => c.types.includes('locality'))?.long_name || "Unknown City",
-        country: gPlace.address_components?.find(c => c.types.includes('country'))?.long_name || "Unknown Country",
+        city: gPlace.address_components?.find(c => c.types.includes('locality'))?.long_name || "",
+        country: gPlace.address_components?.find(c => c.types.includes('country'))?.long_name || "",
         geolocation: {
             lat: gPlace.geometry?.location?.lat || 0,
             lng: gPlace.geometry?.location?.lng || 0
         },
         rating: gPlace.rating || 0,
-        phone_number: gPlace.formatted_phone_number || "N/A",
+        phone_number: gPlace.formatted_phone_number || "",
         types: gPlace.types || [],
-        // Get the first 3 photo references (Google requires a separate API call to display them, but we store the ref)
-        photos: storedPhotos,
-        reviews: [],
+        photos,
+        reviews: [], // Will store MongoDB _ids of reviews
         createdAt: new Date()
     };
 
-    // Insert the place into our Places database 
-    const insertInfo = await cacheCollection.insertOne(newPlace);
-    if (!insertInfo.acknowledged) throw new Error('Failed to save place to database');
+    const insertInfo = await collection.insertOne(newPlace);
+    if (!insertInfo.acknowledged) throw new Error('Failed to save place');
 
     return normalizePlace({ ...newPlace, _id: insertInfo.insertedId });
 };
@@ -134,18 +129,27 @@ export const getOrImportPlace = async (googlePlaceId) => {
 // Get a place normally, checking both saved_places and places
 export const getPlaceById = async (id) => {
     if (!ObjectId.isValid(id)) return null;
-    const objId = new ObjectId(id);
+    const collection = await places();
+    const place = await collection.findOne({ _id: new ObjectId(id) });
+    return place ? normalizePlace(place) : null;
+};
 
-    const savedCollection = await saved_places();
-    const cacheCollection = await places();
+export const addReviewToPlace = async (placeId, reviewId) => {
+    if (!ObjectId.isValid(placeId) || !ObjectId.isValid(reviewId)) return false;
+    const collection = await places();
+    const result = await collection.updateOne(
+        { _id: new ObjectId(placeId) },
+        { $addToSet: { reviews: new ObjectId(reviewId) } }
+    );
+    return result.modifiedCount > 0;
+};
 
-    // Check Directory first
-    const directoryPlace = await savedCollection.findOne({ _id: objId });
-    if (directoryPlace) return normalizePlace(directoryPlace);
-
-    // Check Cache second
-    const cachedPlace = await cacheCollection.findOne({ _id: objId });
-    if (cachedPlace) return normalizePlace(cachedPlace);
-
-    return null;
+export const removeReviewFromPlace = async (placeId, reviewId) => {
+    if (!ObjectId.isValid(placeId) || !ObjectId.isValid(reviewId)) return false;
+    const collection = await places();
+    const result = await collection.updateOne(
+        { _id: new ObjectId(placeId) },
+        { $pull: { reviews: new ObjectId(reviewId) } }
+    );
+    return result.modifiedCount > 0;
 };
