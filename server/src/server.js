@@ -88,7 +88,7 @@ app.get('/api/maps/places', async (req, res) => {
     try {
         const googleKey = process.env.VITE_GOOGLE_MAPS_API_KEY;
         const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=5000&type=${type}&key=${googleKey}`;
-        console.log('Fetching Google Maps places with URL:', url);
+        console.log('Google Maps URL:', url);
         const response = await axios.get(url);
         // console.log(response)
         res.json(response.data);
