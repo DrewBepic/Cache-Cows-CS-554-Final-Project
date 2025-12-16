@@ -75,7 +75,7 @@ function UserProfile() {
     // Format date function
     const formatDate = (dateString) => {
         if (!dateString) return 'Unknown date';
-        const date = new Date(parseInt(dateString));
+        const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
@@ -161,7 +161,14 @@ function UserProfile() {
                                     <Card className="shadow-sm border-0 hover-shadow" style={{ width: '18rem' }}>
                                         <Card.Body className="p-4">
                                             <div className="d-flex justify-content-between align-items-start mb-3">
-                                                <Card.Title className="mb-0 fw-bold">{review.placeName}</Card.Title>
+                                                <Card.Title className="mb-0 fw-bold">
+                                                    <Link 
+                                                        to={`/place/${review.placeId}`} 
+                                                        className="text-decoration-none text-dark"
+                                                    >
+                                                        {review.placeName}
+                                                    </Link>
+                                                </Card.Title>
                                                 <Badge bg="light" text="dark" className="px-3 py-2">
                                                     {review.rating}/5
                                                 </Badge>
@@ -204,20 +211,21 @@ function UserProfile() {
                         </Card>
                     ) : (
                         <Row xs={1} md={2} lg={3} className="g-4">
-                            {savedPlaces.map((placeId, index) => (
-                                <Col key={index}>
+                            {savedPlaces.map((place) => (
+                                <Col key={place.id}>
                                     <Card className="shadow-sm border-0 hover-shadow" style={{ width: '18rem' }}>
                                         <Card.Body className="p-4 d-flex flex-column">
-                                            <Card.Title className="fw-bold mb-3">Saved Place</Card.Title>
+                                            <Card.Title className="fw-bold mb-3">{place.city}{place.country ? `, ${place.country}`: ''}</Card.Title>
                                             <div className="mb-3">
-                                                <small className="text-muted">Place ID:</small>
-                                                <p className="mb-0 fw-bold">{placeId}</p>
+                                                <p className="mb-0 fw-bold">{place.name}</p>
                                             </div>
                                             <Card.Text className="text-muted mb-4 flex-grow-1">
-                                                This location has been saved by {user.firstName}.
+                                                {place.description || `This location has been saved by {user.firstName}.`}
                                             </Card.Text>
                                             <div className="mt-auto">
-                                                <Button variant="outline-primary" size="sm" className="w-100">
+                                                <Button as={Link} to={`/place/${place.id}`}
+                                                variant="outline-primary" size="sm" className="w-100"
+                                                >
                                                     View Details
                                                 </Button>
                                             </div>

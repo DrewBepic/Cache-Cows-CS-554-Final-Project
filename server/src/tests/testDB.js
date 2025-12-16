@@ -65,6 +65,12 @@ const populateData = async () => {
         console.log('Bob:', user2._id);
         console.log('Charlie:', user3._id);
         console.log('\nUse Alice\'s ID in the frontend debug input!');
+
+        console.log('\n🔍 Indexing cities in Elasticsearch...');
+        const { default: setupCityIndex } = await import('../scripts/setupCityIndex.js');
+        await setupCityIndex();
+
+        console.log('\n🎉 Database seeded successfully!');
     }
     catch (error) {
         console.error('❌ Error populating data:', error.message);

@@ -13,6 +13,7 @@ import PlaceDetail from './pages/PlaceDetail';
 import Search from './pages/Search';
 import SearchResults from './pages/SearchResults';
 import Leaderboard from './pages/LeaderBoard';
+import NotFound from './components/NotFound';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
@@ -69,6 +70,7 @@ function App() {
           <Route path="/place/:placeId" element={<PlaceDetail userId={currentUserId}/>} /> 
           <Route path="/search" element={<Search />} />
           <Route path="/search/results" element={<SearchResults />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
     </div>

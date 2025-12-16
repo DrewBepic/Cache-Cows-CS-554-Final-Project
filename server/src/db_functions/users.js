@@ -1,4 +1,4 @@
-import { users } from "../db_config/mongoCollections.js";
+import { users, places } from "../db_config/mongoCollections.js";
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
 export const createUser = async (userData) => {
@@ -59,5 +59,13 @@ export const removeSavedPlace = async (userId, placeId) => {
 };
 export const getSavedPlaces = async (userId) => {
     const user = await findUserById(userId);
-    return user?.saved_places.map(place => place.toString()) || [];
+if (!user || !user.saved_places || user.saved_places.length === 0) {
+        return [];
+    }
+    const placesCollection = await places();
+    const objectIds = user.saved_places.map(id => new ObjectId(id));
+    const result = await placesCollection.find({
+        _id: { $in: objectIds }
+    }).toArray();
+    return result || [];
 };

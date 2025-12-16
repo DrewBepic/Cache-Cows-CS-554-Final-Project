@@ -1,209 +1,110 @@
 import { Client } from '@elastic/elasticsearch';
 
-// Create Elasticsearch client
-export const esClient = new Client({
+// Create and export the Elasticsearch client
+export const client = new Client({
     node: process.env.ELASTICSEARCH_URL || 'http://localhost:9200'
 });
-
-// Index name for saved places
-export const SAVED_PLACES_INDEX = 'saved_places';
-
-// Initialize Elasticsearch index
-export const initializeElasticsearch = async () => {
+// Index a city
+export const indexCity = async (city) => {
     try {
-        // Check if index exists
-        const indexExists = await esClient.indices.exists({
-            index: SAVED_PLACES_INDEX
-        });
-
-        if (!indexExists) {
-            // Create index with mappings
-            await esClient.indices.create({
-                index: SAVED_PLACES_INDEX,
-                body: {
-                    mappings: {
-                        properties: {
-                            id: { type: 'keyword' },
-                            name: { 
-                                type: 'text',
-                                fields: {
-                                    keyword: { type: 'keyword' },
-                                    completion: { type: 'completion' }
-                                }
-                            },
-                            description: { type: 'text' },
-                            city: { 
-                                type: 'text',
-                                fields: {
-                                    keyword: { type: 'keyword' }
-                                }
-                            },
-                            country: { 
-                                type: 'text',
-                                fields: {
-                                    keyword: { type: 'keyword' }
-                                }
-                            },
-                            user_id: { type: 'keyword' },
-                            photos: { type: 'keyword' },
-                            createdAt: { type: 'date' }
-                        }
-                    }
-                }
-            });
-            console.log(`✅ Created Elasticsearch index: ${SAVED_PLACES_INDEX}`);
-        } else {
-            console.log(`✅ Elasticsearch index already exists: ${SAVED_PLACES_INDEX}`);
-        }
-
-        // Test connection
-        await esClient.ping();
-        console.log('✅ Elasticsearch connection successful');
-    } catch (error) {
-        console.error('❌ Elasticsearch initialization error:', error.message);
-        throw error;
-    }
-};
-
-// Index a saved place document
-export const indexSavedPlace = async (place) => {
-    try {
-        await esClient.index({
-            index: SAVED_PLACES_INDEX,
-            id: place._id.toString(),
+        await client.index({
+            // state for the collection
+            index: 'cities',
+            // link MongoDB _id to Elasticsearch _id
+            id: city._id.toString(),
+            //represent the document structure
             document: {
-                id: place._id.toString(),
-                name: place.name,
-                description: place.description || '',
-                city: place.city,
-                country: place.country,
-                user_id: place.user_id.toString(),
-                photos: place.photos || [],
-                createdAt: place.createdAt
+                name: city.name,
+                country: city.country,
+                lat: city.lat,
+                lng: city.lng
             }
         });
-        console.log(`✅ Indexed saved place: ${place.name}`);
     } catch (error) {
-        console.error('❌ Error indexing saved place:', error.message);
+        console.error('Error indexing city:', error);
     }
 };
 
-// Update a saved place document
-export const updateSavedPlaceIndex = async (placeId, updates) => {
+// Bulk index all cities (run once to populate)
+export const indexAllCities = async (citiesArray) => {
     try {
-        await esClient.update({
-            index: SAVED_PLACES_INDEX,
-            id: placeId,
-            doc: updates
-        });
-        console.log(`✅ Updated saved place index: ${placeId}`);
-    } catch (error) {
-        console.error('❌ Error updating saved place index:', error.message);
-    }
-};
-
-// Delete a saved place document
-export const deleteSavedPlaceIndex = async (placeId) => {
-    try {
-        await esClient.delete({
-            index: SAVED_PLACES_INDEX,
-            id: placeId
-        });
-        console.log(`✅ Deleted saved place from index: ${placeId}`);
-    } catch (error) {
-        console.error('❌ Error deleting saved place from index:', error.message);
-    }
-};
-
-// Search saved places
-export const searchSavedPlacesElastic = async (query, userId = null) => {
-    try {
-        const must = [
+        const operations = citiesArray.flatMap(city => [
+            { index: { _index: 'cities', _id: city._id.toString() } },
             {
-                multi_match: {
-                    query: query,
-                    fields: ['name^3', 'city^2', 'country^2', 'description'],
-                    fuzziness: 'AUTO'
-                }
-            }
-        ];
-
-        // Optional: Filter by user
-        if (userId) {
-            must.push({
-                term: { user_id: userId }
-            });
-        }
-
-        const result = await esClient.search({
-            index: SAVED_PLACES_INDEX,
-            body: {
-                query: {
-                    bool: { must }
-                },
-                size: 50
-            }
-        });
-
-        return result.hits.hits.map(hit => hit._source);
-    } catch (error) {
-        console.error('❌ Elasticsearch search error:', error.message);
-        return [];
-    }
-};
-
-// Get autocomplete suggestions
-export const getAutocompleteSuggestions = async (prefix) => {
-    try {
-        const result = await esClient.search({
-            index: SAVED_PLACES_INDEX,
-            body: {
-                suggest: {
-                    place_suggest: {
-                        prefix: prefix,
-                        completion: {
-                            field: 'name.completion',
-                            size: 10,
-                            fuzzy: {
-                                fuzziness: 'AUTO'
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        return result.suggest.place_suggest[0].options.map(option => ({
-            text: option.text,
-            score: option._score
-        }));
-    } catch (error) {
-        console.error('❌ Autocomplete error:', error.message);
-        return [];
-    }
-};
-
-// Bulk index all existing saved places (for initial setup)
-export const bulkIndexSavedPlaces = async (places) => {
-    try {
-        const operations = places.flatMap(place => [
-            { index: { _index: SAVED_PLACES_INDEX, _id: place._id.toString() } },
-            {
-                id: place._id.toString(),
-                name: place.name,
-                description: place.description || '',
-                city: place.city,
-                country: place.country,
-                user_id: place.user_id.toString(),
-                photos: place.photos || [],
-                createdAt: place.createdAt
+                name: city.name,
+                country: city.country,
+                lat: city.lat,
+                lng: city.lng
             }
         ]);
+        //refresh true -> Data is searchable instantly.
+        const bulkResponse = await client.bulk({ refresh: true, operations });
 
-        const result = await esClient.bulk({ operations });
-        console.log(`✅ Bulk indexed ${places.length} saved places`);
-        return result;
+        if (bulkResponse.errors) {
+            console.error('Bulk indexing had errors');
+        } else {
+            console.log(`Successfully indexed ${citiesArray.length} cities`);
+        }
     } catch (error) {
-        console.error('❌ Bulk index error:', error.message);
+        console.error('Error bulk indexing cities:', error);
+    }
+};
+
+// Search cities using Elasticsearch
+export const searchCitiesElastic = async (query) => {
+    try {
+        const result = await client.search({
+            index: 'cities',
+            body: {
+                query: {
+                    bool: {
+                        should: [
+                            {
+                                match: {
+                                    name: {
+                                        query: query,
+                                        fuzziness: 'AUTO',
+                                        boost: 2  //  Prioritize exact matches
+                                    }
+                                }
+                            },
+                            {
+                                wildcard: {
+                                    name: {
+                                        value: `*${query.toLowerCase()}*`,
+                                    }
+                                }
+                            }
+                        ],
+                        minimum_should_match: 1
+                    }
+                },
+                size: 10  //  10 for faster results
+            }
+        });
+
+        return result.hits.hits.map(hit => ({
+            id: hit._id,
+            name: hit._source.name,
+            country: hit._source.country,
+            lat: hit._source.lat,
+            lng: hit._source.lng
+        }));
+    } catch (error) {
+        console.error('Error searching cities:', error);
+        return [];
+    }
+};
+
+// Initialize Elasticsearch connection
+export const initializeElasticsearch = async () => {
+    try {
+        const ping = await client.ping();
+        console.log('Success Elasticsearch connected');
+        return true;
+    } catch (error) {
+        console.error('Error Elasticsearch connection failed:', error);
+        console.error('Make sure Elasticsearch is running on', process.env.ELASTICSEARCH_URL || 'http://localhost:9200');
+        return false;
     }
 };
