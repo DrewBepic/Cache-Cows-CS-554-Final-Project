@@ -30,7 +30,7 @@ brew services start elasticsearch-full
 curl http://localhost:9200
 ```
 
-[Manual start & troubleshooting guide →](#elasticsearch-setup-details)
+[Manual start & troubleshooting guide →](#-elasticsearch-setup-details)
 
 ### 3. Add `.env` File
 
