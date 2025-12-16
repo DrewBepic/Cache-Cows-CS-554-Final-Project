@@ -456,3 +456,116 @@
     text-decoration: underline;
 }
 
+
+.feed-content h2 {
+    font-size: 2rem;
+    color: #333;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.loading-text,
+.empty-text {
+    text-align: center;
+    color: gray;
+    padding: 2rem;
+    font-size: 1.1rem;
+}
+
+.reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.review-card {
+    background: whitesmoke;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px lightgray;
+}
+
+.review-card:hover {
+    box-shadow: 0 4px 12px lightslategray;
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.review-user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.username-link {
+    color:royalblue;
+    font-weight: bold;
+}
+
+.username-link:hover {
+    text-decoration: underline;
+}
+
+.review-date {
+    color: lightgray;
+    font-size: 0.9rem;
+}
+
+.rating-badge {
+    padding: 1rem 1rem;
+    border-radius: 20px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.rating-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.rating-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.rating-warning {
+    background-color: #ffc107;
+    color: black;
+}
+
+.rating-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.rating-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.place-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.place-name {
+    color: #333;
+    font-size: 1.3rem;
+    margin: 0.5rem 0;
+}
+
+.place-link:hover .place-name {
+    color: royalblue;
+}
+
+.review-notes {
+    color: gray;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 1rem 0 0 0;
+}

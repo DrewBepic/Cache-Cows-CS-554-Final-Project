@@ -104,6 +104,7 @@ export const typeDefs = `#graphql
 
         getUserReviews(userId: ID!): [Review!]!
         getReviewsByPlace(placeId: String!): [Review!]!
+        getRecentReviews(limit: Int!): [Review!]!
         getSavedPlaces(userId: ID!): [SavedPlace!]!
 
         getSavedPlace(placeId: ID!): SavedPlace

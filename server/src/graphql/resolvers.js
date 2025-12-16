@@ -135,6 +135,35 @@ export const resolvers = {
             const reviews = await reviewFunctions.getReviewsByPlaceId(placeId);
             return reviews.map(convertReview);
         },
+        getRecentReviews: async (_, { limit = 10 }) => {
+            try {
+                if (limit < 1 || limit > 100) {
+                    throw new Error('Limit must be between 1 and 100');
+                }
+
+                const reviewsCol = await reviewsCollection();
+                const recentReviews = await reviewsCol
+                    .find({})
+                    .sort({ createdAt: -1 })
+                    .limit(limit)
+                    .toArray();
+
+                const usersCol = await users();
+                const reviewsWithUsernames = [];
+                
+                for (const review of recentReviews) {
+                    const user = await usersCol.findOne({ _id: review.user_id });
+                    reviewsWithUsernames.push({
+                        ...convertReview(review),
+                        username: user?.username || 'Unknown'
+                    });
+                }
+
+                return reviewsWithUsernames;
+            } catch (error) {
+                throw new Error(`Error fetching recent reviews: ${error.message}`);
+            }
+        },
         getSavedPlaces: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');

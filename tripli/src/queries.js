@@ -84,6 +84,21 @@ export const GET_USER_REVIEWS = gql`
   }
 `;
 
+export const GET_RECENT_REVIEWS = gql`
+  query GetRecentReviews($limit: Int!) {
+    getRecentReviews(limit: $limit) {
+      id
+      userId
+      username
+      placeId
+      placeName
+      rating
+      notes
+      createdAt
+    }
+  }
+`;
+
 // saved places ones
 
 export const GET_SAVED_PLACES = gql`
