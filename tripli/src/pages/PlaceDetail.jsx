@@ -83,7 +83,12 @@ function PlaceDetail({ userId: incomingUserId }) {
     ]
   });
 
-  const [finalizeRating] = useMutation(FINALIZE_COMPARATIVE_RATING);
+  const [finalizeRating] = useMutation(FINALIZE_COMPARATIVE_RATING, {
+    refetchQueries: [
+      { query: GET_SAVED_PLACE, variables: { placeId } },
+      { query: GET_USER_REVIEWS, variables: { userId } }
+    ]
+  });
 
   useEffect(() => {
     if (userData?.getUser?.savedPlaces && placeId) {

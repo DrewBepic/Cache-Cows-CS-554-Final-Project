@@ -81,8 +81,7 @@ export const getComparisonCandidates = async (userId, newReviewId) => {
         .sort({ rating: 1 })
         .toArray();
 
-    // First review - no comparison needed
-    if (existingReviews.length === 0) {
+    if (existingReviews.length < 2) {
         await reviewsCollection.updateOne(
             { _id: new ObjectId(newReviewId) },
             { $set: { finalRating: newReview.rating } }
