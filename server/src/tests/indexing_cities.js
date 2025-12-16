@@ -8,7 +8,7 @@ const setupCityIndex = async () => {
         const indexExists = await client.indices.exists({ index: 'cities' });
         if (indexExists) {
             await client.indices.delete({ index: 'cities' });
-            console.log('  🗑️  Deleted existing cities index');
+            console.log('  Deleted existing cities index');
         }
 
         // Create index with mapping
@@ -35,14 +35,14 @@ const setupCityIndex = async () => {
                 }
             }
         });
-        console.log('Success Created cities index');
+        console.log('✅ Success Created cities index');
 
         // Index all cities from MongoDB
         const citiesCollection = await cities();
         const allCities = await citiesCollection.find({}).toArray();
         
         await indexAllCities(allCities);
-        console.log(`Success Indexed ${allCities.length} cities`);
+        console.log(`✅ Success Indexed ${allCities.length} cities`);
 
     } catch (error) {
         console.error('Error setting up city index:', error);
