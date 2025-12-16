@@ -427,11 +427,12 @@ export const resolvers = {
                 notes = notes.trim();
             }
             try {
-                const review = await reviewFunctions.createReview(userId, placeId.trim(), placeName.trim(), rating, notes?.trim(), photos);
-                await placeFunctions.addReviewToPlace(placeId, review._id.toString());
+                const cleanPlaceId = placeId.trim();
+                const review = await reviewFunctions.createReview(userId, cleanPlaceId, placeName.trim(), rating, notes?.trim(), photos);
+                await placeFunctions.addReviewToPlace(cleanPlaceId, review._id.toString());
                 if (review) {
-                    await deletekeywithPattern('topspots:*'); // Invalidate relevant cache
-                    await client.del(`place:${placeId}`);
+                    await deletekeywithPattern('topspots:*'); 
+                    await client.del(`place:${cleanPlaceId}`);
                 }
                 return convertReview(review);
             }
@@ -444,11 +445,18 @@ export const resolvers = {
                 throw new Error('Invalid ID format');
             }
             try {
+                const reviewsCol = await reviewsCollection();
+                const review = await reviewsCol.findOne({ _id: new ObjectId(reviewId) });
+                if (!review) throw new Error("Review not found");
+                const placeId = review.place_id;
                 const success = await reviewFunctions.deleteReview(userId, reviewId);
                 if (success) {
+                    if (placeId) {
+                        await placeFunctions.removeReviewFromPlace(placeId, reviewId);
+                        await client.del(`place:${placeId}`);
+                    }
                     await deletekeywithPattern('topspots:*');
                 }
-
                 return success;
             }
             catch (error) {
