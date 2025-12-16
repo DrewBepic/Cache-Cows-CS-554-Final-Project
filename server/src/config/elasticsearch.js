@@ -79,7 +79,7 @@ export const searchCitiesElastic = async (query) => {
                         minimum_should_match: 1
                     }
                 },
-                size: 10  //  10 for faster results
+                size: 50  //  10 for faster results
             }
         });
 

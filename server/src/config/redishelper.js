@@ -1,4 +1,14 @@
-import { client } from '../server.js';
+import { createClient } from 'redis';
+
+export const client = createClient({
+    url: 'redis://localhost:6379'
+});
+
+// Only connect if not already connected
+if (!client.isOpen) {
+    await client.connect();
+    console.log('✅ Redis connected');
+}
 
 export const getFromCache = async (key) => {
     try {
