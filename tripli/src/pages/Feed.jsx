@@ -1,10 +1,24 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { Link, useNavigate  } from 'react-router-dom';
+import { Container, Alert } from 'react-bootstrap';
 import { LOGOUT, GET_RECENT_REVIEWS } from '../queries';
 
 function Feed() {
     const userId = localStorage.getItem('userId');
     const navigate = useNavigate();
+
+     // Check if logged in
+    if (!userId) {
+        return (
+            <Container className="my-5">
+                <Alert variant="warning">
+                    <Alert.Heading>Log In</Alert.Heading>
+                    <p>You need to be logged in to perform a search.</p>
+                    <Link to="/login">Go to Login</Link>
+                </Alert>
+            </Container>
+        );
+    }
     
     const { data, loading, error } = useQuery(GET_RECENT_REVIEWS, {
         variables: { limit: 25 }

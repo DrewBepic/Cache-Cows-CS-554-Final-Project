@@ -3,7 +3,7 @@ import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client';
 import { SEARCH_CITIES, IMPORT_GOOGLE_PLACE } from '../queries';
 import axios from 'axios';
-import { Button, Card, Spinner, Alert, Badge } from 'react-bootstrap';
+import { Button, Card, Spinner, Alert, Badge, Container } from 'react-bootstrap';
 //import './SearchResults.css';
 
 const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -24,8 +24,23 @@ const ENTERTAINMENT_TYPES = [
 export default function SearchResults() {
     const [params] = useSearchParams();
     const navigate = useNavigate();
+
+     // Check if logged in
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+        return (
+            <Container className="my-5">
+                <Alert variant="warning">
+                    <Alert.Heading>Log In</Alert.Heading>
+                    <p>You need to be logged in to perform a search.</p>
+                    <Link to="/login">Go to Login</Link>
+                </Alert>
+            </Container>
+        );
+    }
+
     const query = (params.get('query') || '').trim();
-    const isValid = query.length >= 1;
+    const isValid = query.length >= 1 && query.length <= 20;
 
     const [selectedCity, setSelectedCity] = useState(null);
     const [entertainmentType, setEntertainmentType] = useState('');
