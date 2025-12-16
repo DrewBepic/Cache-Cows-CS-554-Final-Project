@@ -122,7 +122,7 @@ function PlaceDetail({ userId }) {
       <Container className="place-detail-container">
         <Alert variant="warning" className="not-found-alert">
           <Alert.Heading>Place Not Found</Alert.Heading>
-          <p>We couldn't find a place with ID: <strong>{placeId}</strong></p>
+          <p>We couldn't find a place with ID: {placeId}</p>
           <p>It might be saved in the cache but not the directory yet.</p>
           <Link to="/search" className="btn btn-primary">Return to Search</Link>
         </Alert>
@@ -310,7 +310,7 @@ function PlaceDetail({ userId }) {
                   <Alert key={r.id} variant="info" className="friend-review-alert">
                     <div className="friend-review-header">
                       <Badge bg="info" className="rating-badge small">★ {r.rating.toFixed(1)}</Badge>
-                      <span><strong>A friend</strong> rated this place.</span>
+                      <span>A friend rated this place.</span>
                     </div>
                     {r.notes && <p className="review-note">"{r.notes}"</p>}
                   </Alert>

@@ -47,7 +47,7 @@ export default function Search() {
                     />
                     <button className="search-button" type="submit">Search</button>
                 </div>
-                <small className="hint-text">Enter at least one character to search.</small>
+                <div className="search-text">Enter at least one character to search.</div> 
             </form>
         </div>
     );
