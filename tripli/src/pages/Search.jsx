@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { 
-  Container, Row, Col, Card, Button, Alert, Spinner, ListGroup, Form,
-  InputGroup, Badge, Tab, Tabs
+import {
+    Container, Row, Col, Card, Button, Alert, Spinner, ListGroup, Form,
+    InputGroup, Badge, Tab, Tabs
 } from 'react-bootstrap';
 
 export default function Search() {
@@ -27,10 +27,16 @@ export default function Search() {
     const handleSubmit = (e) => {
         e.preventDefault();
         const query = term.trim();
-        if (query) {
-            navigate(`/search/results?query=${encodeURIComponent(query)}`);
+
+        if (query.length === 0) return;
+        if (query.length > 20) {
+            alert("Search term must be under 20 characters long");
+            return;
         }
+
+        navigate(`/search/results?query=${encodeURIComponent(query)}`);
     };
+
 
     return (
         <div className="search-page">
@@ -47,7 +53,7 @@ export default function Search() {
                     />
                     <button className="search-button" type="submit">Search</button>
                 </div>
-                <div className="search-text">Enter at least one character to search.</div> 
+                <div className="search-text">Enter at least one character to search.</div>
             </form>
         </div>
     );
