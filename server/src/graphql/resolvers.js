@@ -509,6 +509,7 @@ export const resolvers = {
             }
             try {
                 const updatedUser = await friendFunctions.removeFriend(currentUserId, friendId);
+                await deletekeywithPattern('topspots:*');
                 await client.flushAll();
                 return convertUser(updatedUser);
             }

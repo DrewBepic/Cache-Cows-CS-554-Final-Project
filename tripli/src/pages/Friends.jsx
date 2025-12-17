@@ -13,7 +13,9 @@ import {
   ACCEPT_FRIEND_REQUEST,
   REJECT_FRIEND_REQUEST,
   REMOVE_FRIEND,
-  SEARCH_USERS
+  SEARCH_USERS,
+  GET_GLOBAL_TOP_SPOTS,
+  GET_FRIENDS_TOP_SPOTS
 } from '../queries.js';
 
 // helper funcs
@@ -328,6 +330,12 @@ function Friends() {
     });
 
     const [acceptFriendRequest] = useMutation(ACCEPT_FRIEND_REQUEST, {
+        refetchQueries: [
+            { query: GET_FRIENDS, variables: { userId } },
+            { query: GET_FRIEND_REQUESTS, variables: { userId } },
+            { query: GET_FRIENDS_TOP_SPOTS, variables: { userId, limit: 10 } },
+            { query: GET_GLOBAL_TOP_SPOTS, variables: { limit: 10 } }
+        ],
         onCompleted: () => {
             setErrorMessage(null);
             setSuccessMessage('Friend request accepted!');
@@ -342,6 +350,11 @@ function Friends() {
     });
 
     const [rejectFriendRequest] = useMutation(REJECT_FRIEND_REQUEST, {
+        refetchQueries: [
+            { query: GET_FRIENDS, variables: { userId } },
+            { query: GET_FRIENDS_TOP_SPOTS, variables: { userId, limit: 10 } },
+            { query: GET_GLOBAL_TOP_SPOTS, variables: { limit: 10 } }
+        ],
         onCompleted: () => {
             setErrorMessage(null);
             setSuccessMessage('Friend request rejected.');
