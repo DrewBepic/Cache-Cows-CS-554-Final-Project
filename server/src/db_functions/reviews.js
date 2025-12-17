@@ -1,6 +1,5 @@
 import { reviews, users, comparisonSessions } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
-import { deletekeywithPattern } from '../config/redishelper.js';
 
 
 export const createReview = async (userId, placeId, placeName, rating, notes, photos = []) => {
@@ -28,7 +27,6 @@ export const createReview = async (userId, placeId, placeName, rating, notes, ph
     newReview._id = insertResult.insertedId.toString();
 
     await usersCollection.updateOne({ _id: new ObjectId(userId) }, { $addToSet: { reviews: new ObjectId(newReview._id) } });
-    await deletekeywithPattern('topspots:*');
     return newReview;
 };
 
@@ -61,7 +59,6 @@ export const deleteReview = async (userId, reviewId) => {
             { $pull: { reviews: new ObjectId(reviewId) } }
         );
     }
-    await deletekeywithPattern('topspots:*');
     return result.deletedCount > 0;
 };
 
@@ -161,7 +158,6 @@ export const finalizeComparativeRating = async (reviewId, chosenCandidateRating,
         { _id: new ObjectId(reviewId) },
         { $set: { finalRating: finalRating, rating: finalRating } }
     );
-    await deletekeywithPattern('topspots:*');
 
     return finalRating;
 };
