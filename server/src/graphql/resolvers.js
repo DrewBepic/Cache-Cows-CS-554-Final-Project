@@ -406,6 +406,7 @@ export const resolvers = {
                 last_name: lastName.trim(),
                 password: password.trim()
             });
+            await client.flushAll();
             const dbUser = await userFunctions.findUserByUsername(cleanUsername);
             if (dbUser) {
                 await client.set(`user:username:${cleanUsername}`, JSON.stringify(dbUser));
@@ -467,6 +468,7 @@ export const resolvers = {
                 const updatedUser = await friendFunctions.sendFriendRequest(currentUserId, friendUsername.trim());
                 const converted = convertUser(updatedUser);
                 // DEBUG: Log after conversion
+                await client.flushAll();
                 return converted;
             }
             catch (error) {
@@ -480,6 +482,7 @@ export const resolvers = {
             try {
                 const updatedUser = await friendFunctions.acceptFriendRequest(currentUserId, friendId);
                 await deletekeywithPattern('topspots:*');
+                await client.flushAll();
                 return convertUser(updatedUser);
             }
             catch (error) {
@@ -493,6 +496,7 @@ export const resolvers = {
             try {
                 const updatedUser = await friendFunctions.rejectFriendRequest(currentUserId, friendId);
                 await deletekeywithPattern('topspots:*');
+                await client.flushAll();
                 return convertUser(updatedUser);
             }
             catch (error) {
@@ -505,6 +509,7 @@ export const resolvers = {
             }
             try {
                 const updatedUser = await friendFunctions.removeFriend(currentUserId, friendId);
+                await client.flushAll();
                 return convertUser(updatedUser);
             }
             catch (error) {
@@ -574,6 +579,7 @@ export const resolvers = {
             if (!placeId.trim()) {
                 throw new Error('Place ID is required');
             }
+            await client.flushAll();
             const res = await userFunctions.addSavedPlace(userId, placeId.trim());
             return res; //true if modified, false otherwise
         },
@@ -584,12 +590,14 @@ export const resolvers = {
             if (!placeId.trim()) {
                 throw new Error('Place ID is required');
             }
+            await client.flushAll();
             const res = await userFunctions.removeSavedPlace(userId, placeId.trim());
             return res; //true if modified, false otherwise
         },
         importGooglePlace: async (_, { googlePlaceId }) => {
             try {
                 const place = await placeFunctions.getOrImportPlace(googlePlaceId);
+                await client.flushAll();
                 return convertSavedPlace(place);
             } catch (e) {
                 throw new Error(e.message);
