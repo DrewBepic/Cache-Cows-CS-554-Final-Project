@@ -10,6 +10,19 @@ import { setCache, getFromCache, deletekeywithPattern } from '../config/redishel
 import bcrypt from 'bcryptjs';
 import { GraphQLError } from 'graphql';
 import { client } from '../server.js';
+
+const CACHE_KEYS = {
+    USER: (id) => `user:${id}`,
+    USER_BY_USERNAME: (username) => `user:username:${username.toLowerCase()}`,
+    FRIENDS: (userId) => `friends:${userId}`,
+    FRIEND_REQUESTS: (userId) => `friendRequests:${userId}`,
+    SENT_REQUESTS: (userId) => `sentRequests:${userId}`,
+    REVIEWS: (userId) => `reviews:${userId}`,
+    REVIEWS_BY_PLACE: (placeId) => `reviews:place:${placeId}`,
+    SAVED_PLACES: (userId) => `savedPlaces:${userId}`,
+    SEARCH_USERS: (query) => `search:users:${query.toLowerCase()}`
+};
+
 //Some helpers
 const isValidObjectId = (id) => {
     return ObjectId.isValid(id);
@@ -38,7 +51,7 @@ const convertReview = (review) => {
         placeId: review.place_id?.toString() || review.place_id,
         placeName: review.place_name?.toString() || review.place_name,
         userId: review.user_id instanceof ObjectId ?
-            review.user_id.toString() : review.user_id,
+        review.user_id.toString() : review.user_id,
         createdAt: review.createdAt?.toISOString(),
         rating: review.rating,
         notes: review.notes || '',
@@ -70,20 +83,35 @@ export const resolvers = {
             if (!isValidObjectId(id)) {
                 throw new Error('Invalid user ID format');
             }
+            const cacheKey = CACHE_KEYS.USER(id);
+            const cachedUser = await client.get(cacheKey);
+            if (cachedUser) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedUser);
+            }
+
             const user = await userFunctions.findUserById(id);
             if (!user) {
                 throw new Error('User not found');
             }
+            await client.set(cacheKey, JSON.stringify(convertUser(user)));
             return convertUser(user);
         },
         getUserByUsername: async (_, { username }) => {
             if (!username || username.trim() === '') {
                 throw new Error('Username cannot be empty');
             }
+            const cacheKey = CACHE_KEYS.USER_BY_USERNAME(username.trim());
+            const cachedUser = await client.get(cacheKey);
+            if (cachedUser) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedUser);
+            }
             const user = await userFunctions.findUserByUsername(username);
             if (!user) {
                 throw new Error('User not found');
             }
+            await client.set(cacheKey, JSON.stringify(convertUser(user)));
             return convertUser(user);
         },
         getPlace: async (_, { id }) => {
@@ -98,42 +126,84 @@ export const resolvers = {
             if (query.length < 2) {
                 throw new Error('Search query must be at least 2 characters long');
             }
+            const cacheKey = CACHE_KEYS.SEARCH_USERS(query.trim());
+            const cachedUsers = await client.get(cacheKey);
+            if (cachedUsers) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedUsers);
+            }
             const users = await userFunctions.searchUsersByUsername(query);
+            await client.set(cacheKey, JSON.stringify(users.map(convertUser)));
             return users.map(convertUser);
         },
         getFriends: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
+            const cacheKey = CACHE_KEYS.FRIENDS(userId.trim());
+            const cachedFriends = await client.get(cacheKey);
+            if (cachedFriends) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedFriends);
+            }
             const friends = await friendFunctions.getUserFriends(userId);
+            await client.set(cacheKey, JSON.stringify(friends.map(convertUser)));
             return friends.map(convertUser);
         },
         getFriendRequests: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
+            const cacheKey = CACHE_KEYS.FRIEND_REQUESTS(userId.trim());
+            const cachedFriends = await client.get(cacheKey);
+            if (cachedFriends) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedFriends);
+            }
             const friendRequests = await friendFunctions.getFriendRequests(userId);
+            await client.set(cacheKey, JSON.stringify(friendRequests.map(convertUser)));
             return friendRequests.map(convertUser);
         },
         getSentFriendRequests: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
+            const cacheKey = CACHE_KEYS.SENT_REQUESTS(userId.trim());
+            const cachedFriends = await client.get(cacheKey);
+            if (cachedFriends) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedFriends);
+            }
             const sentFriendRequests = await friendFunctions.getSentFriendRequests(userId);
+            await client.set(cacheKey, JSON.stringify(sentFriendRequests.map(convertUser)));
             return sentFriendRequests.map(convertUser);
         },
         getUserReviews: async (_, { userId }) => {
             if (!isValidObjectId(userId)) {
                 throw new Error('Invalid user ID format');
             }
+            const cacheKey = CACHE_KEYS.REVIEWS(userId);
+            const cachedReviews = await client.get(cacheKey);
+            if (cachedReviews) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedReviews);
+            }
             const reviews = await reviewFunctions.getReviewsByUserId(userId);
+            await client.set(cacheKey, JSON.stringify(reviews.map(convertReview)));
             return reviews.map(convertReview);
         },
         getReviewsByPlace: async (_, { placeId }) => {
             if (!placeId || placeId.trim() === '') {
                 throw new Error('Place ID cannot be empty');
             }
+            const cacheKey = CACHE_KEYS.REVIEWS_BY_PLACE(placeId);
+            const cachedReviews = await client.get(cacheKey);
+            if (cachedReviews) {
+                console.log(`Cache Hit: ${cacheKey}`);
+                return JSON.parse(cachedReviews);
+            }
             const reviews = await reviewFunctions.getReviewsByPlaceId(placeId);
+            await client.set(cacheKey, JSON.stringify(reviews.map(convertReview)));
             return reviews.map(convertReview);
         },
         getRecentReviews: async (_, { limit = 10 }) => {
@@ -365,7 +435,7 @@ export const resolvers = {
                 throw new Error('Authentication error - invalid user data');
             }
 
-            const isPasswordValid = await bcrypt.compare(password, user.password);
+            const isPasswordValid = await bcrypt.compare(password.trim(), user.password);
             if (!isPasswordValid) {
                 throw new Error('Invalid username or password');
             }

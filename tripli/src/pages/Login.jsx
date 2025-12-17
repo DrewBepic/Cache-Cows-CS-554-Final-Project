@@ -48,7 +48,9 @@ function Login({ setIsLoggedIn, setCurrentUserId }) {
             }
         }
         catch (err) {
-            setError('Login failed. Please try again.');
+            console.error('Login error details:', err);
+            const errorMessage =  err.message || 'Login failed. Please try again.';
+            setError(errorMessage);
         }
     };
 
