@@ -21,7 +21,8 @@ function Feed() {
     }
     
     const { data, loading, error } = useQuery(GET_RECENT_REVIEWS, {
-        variables: { limit: 25 }
+        variables: { limit: 25 },
+        fetchPolicy: "cache-and-network"
     });
 
     const getRatingVariant = (rating) => {
