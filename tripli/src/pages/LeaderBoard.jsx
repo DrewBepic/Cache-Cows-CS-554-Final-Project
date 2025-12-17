@@ -41,16 +41,18 @@ const Leaderboard = ({ currentUserId }) => {
             city: globalCityFilter || undefined,
             country: globalCountryFilter || undefined,
         },
+        fetchPolicy: "cache-and-network"
     });
 
     // Query for the user and friends top-rated spots
     const { data: friendsData, loading: friendsLoading, error: friendsError } = useQuery(GET_FRIENDS_TOP_SPOTS, {
         variables: {
-            userId: currentUserId,
+            userId: userId,
             limit: 10,
             city: friendsCityFilter || undefined,
             country: friendsCountryFilter || undefined,
         },
+        fetchPolicy: "cache-and-network"
     });
 
     // initialise variable and get data from query data
