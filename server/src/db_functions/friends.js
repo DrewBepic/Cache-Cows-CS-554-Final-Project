@@ -1,6 +1,5 @@
 import { users } from '../db_config/mongoCollections.js';
 import { ObjectId } from 'mongodb';
-import { deletekeywithPattern } from '../config/redishelper.js';
 
 
 //send friend req by username
@@ -73,8 +72,6 @@ export const acceptFriendRequest = async (currentUserId, friendId) => {
     //now return updaed user w/o password
     const updatedUser = await usersCollection.findOne({ _id: currentUser._id });
     const { password, ...userWithoutPassword } = updatedUser;
-    await deletekeywithPattern(`topspots:user:${currentUserId}:*`);
-    await deletekeywithPattern(`topspots:user:${friendId}:*`);
     return userWithoutPassword;
 };
 //now reject
@@ -122,8 +119,6 @@ export const removeFriend = async (currentUserId, friendId) => {
     ]);
     const updatedUser = await usersCollection.findOne({ _id: currentUser._id });
     const { password, ...userWithoutPassword } = updatedUser;
-    await deletekeywithPattern(`topspots:user:${currentUserId}:*`);
-    await deletekeywithPattern(`topspots:user:${friendId}:*`);
     return userWithoutPassword;
 };
 //get all friends

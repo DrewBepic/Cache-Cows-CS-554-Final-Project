@@ -18,6 +18,9 @@ brew install elastic/tap/elasticsearch-full@7.17.4
 ```bash
 brew install imagemagick
 ```
+Or
+Go to https://imagemagick.org/script/download.php#windows
+and download the latest version and run it.
 
 ### 2. Start Elasticsearch Server
 
@@ -53,6 +56,8 @@ npm run seed
 ```
 
 ### 5. Start the Application
+
+This will start both the `Apollo Server` and `Vite`.
 
 ```bash
 npm start

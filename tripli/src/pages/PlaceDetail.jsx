@@ -86,7 +86,9 @@ function PlaceDetail({ userId: incomingUserId }) {
   const [finalizeRating] = useMutation(FINALIZE_COMPARATIVE_RATING, {
     refetchQueries: [
       { query: GET_SAVED_PLACE, variables: { placeId } },
-      { query: GET_USER_REVIEWS, variables: { userId } }
+      { query: GET_USER_REVIEWS, variables: { userId } },
+      { query: GET_GLOBAL_TOP_SPOTS, variables: { limit: 10 } },
+      { query: GET_FRIENDS_TOP_SPOTS, variables: { userId, limit: 10 } }
     ]
   });
 
